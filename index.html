@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>OPEN CLUB — Proposal Engine</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+
+<style>
+:root{
+ --green:#00D64F;
+ --black:#0B0B0C;
+ --gray:#F5F5F5;
+}
+
+body{
+ margin:0;
+ font-family:Inter,sans-serif;
+ background:linear-gradient(180deg,#0b0b0c,#111);
+ color:#111;
+}
+
+.wrapper{
+ max-width:1200px;
+ margin:auto;
+ padding:40px 20px 80px;
+}
+
+.card{
+ background:#fff;
+ border-radius:28px;
+ padding:50px;
+ box-shadow:0 40px 120px rgba(0,0,0,.35);
+}
+
+h1{
+ font-size:46px;
+ font-weight:900;
+ margin:0;
+ letter-spacing:-1px;
+}
+
+.sub{
+ font-family:'Space Mono';
+ font-size:11px;
+ opacity:.5;
+ margin-top:6px;
+}
+
+.phase{
+ margin-top:40px;
+}
+
+.phase h2{
+ font-size:18px;
+ text-transform:uppercase;
+ letter-spacing:.08em;
+ margin-bottom:10px;
+}
+
+.item{
+ display:flex;
+ justify-content:space-between;
+ align-items:center;
+ padding:14px 0;
+ border-bottom:1px solid #f0f0f0;
+}
+
+.item label{
+ cursor:pointer;
+ display:flex;
+ align-items:center;
+ gap:10px;
+}
+
+.badge{
+ font-size:10px;
+ padding:4px 8px;
+ background:var(--green);
+ border-radius:6px;
+ font-weight:700;
+}
+
+.price{
+ font-weight:800;
+ font-family:'Space Mono';
+}
+
+.summary{
+ margin-top:40px;
+ padding:30px;
+ background:#fafafa;
+ border-radius:20px;
+ border:1px solid #eee;
+}
+
+.total{
+ font-size:40px;
+ font-weight:900;
+}
+
+.actions{
+ display:flex;
+ gap:14px;
+ margin-top:30px;
+}
+
+button{
+ flex:1;
+ padding:18px;
+ border-radius:16px;
+ border:none;
+ font-weight:800;
+ cursor:pointer;
+ font-family:Inter;
+}
+
+.btn-dark{background:#111;color:#fff}
+.btn-green{background:var(--green)}
+
+textarea{
+ width:100%;
+ margin-top:20px;
+ padding:16px;
+ border-radius:12px;
+ border:1px solid #ddd;
+ resize:none;
+}
+
+.approved{
+ margin-top:30px;
+ padding:20px;
+ border:2px dashed var(--green);
+ border-radius:20px;
+ text-align:center;
+ font-weight:800;
+}
+
+</style>
+</head>
+
+<body>
+<div class="wrapper">
+
+<div class="card" id="pdf">
+
+<h1>OPEN CLUB</h1>
+<div class="sub">Visual Infrastructure Proposal</div>
+
+<div id="phases"></div>
+
+<div class="summary">
+ <div id="breakdown"></div>
+ <div class="total" id="total"></div>
+</div>
+
+<textarea id="notes" placeholder="Observaciones del cliente..."></textarea>
+
+<div class="approved" id="approval" onclick="toggleApproval()">
+ Confirmar aceptación
+</div>
+
+</div>
+
+<div class="actions">
+<button class="btn-dark" onclick="downloadPDF()">Descargar PDF</button>
+<button class="btn-green" onclick="sendWhatsApp()">Iniciar proyecto</button>
+</div>
+
+</div>
+
+<script>
+// ⚠️ FIX: ensure pure JS execution (no TSX/React environment required)
+// This file must be served as .html (NOT .tsx)
+
+const BASE=25000;
+const DISCOUNT=0.2;
+const TAX=0.1375;
+
+const DATA=[
+{
+ title:'Fase 1 — Identidad',
+ items:[
+  {id:'logo',name:'Logo + Sistema',hours:14,core:true},
+  {id:'manual',name:'Manual Marca',price:100000,core:true},
+  {id:'menu',name:'Diseño Menú',hours:6}
+ ]
+},
+{
+ title:'Fase 2 — Expansión',
+ items:[
+  {id:'stickers',name:'Stickers',price:50000},
+  {id:'campaign',name:'Dirección campaña',hours:6}
+ ]
+}
+];
+
+let selected=new Set(['logo','manual']);
+let approved=false;
+
+function f(n){return '$'+Math.round(n).toLocaleString('es-CL')}
+
+function calc(){
+ let raw=0;
+ DATA.forEach(p=>{
+  p.items.forEach(i=>{
+   if(selected.has(i.id)){
+    raw+=(i.price||i.hours*BASE);
+   }
+  })
+ })
+ const discount=raw*DISCOUNT;
+ const net=raw-discount;
+ const gross=net/(1-TAX);
+ return{raw,discount,net,gross}
+}
+
+function render(){
+ const root=document.getElementById('phases');
+ root.innerHTML='';
+
+ DATA.forEach(p=>{
+  const div=document.createElement('div');
+  div.className='phase';
+
+  let html=`<h2>${p.title}</h2>`;
+
+  p.items.forEach(i=>{
+   const checked=selected.has(i.id);
+   const price=i.price||i.hours*BASE;
+
+   html+=`<div class="item">
+   <label>
+   <input type="checkbox" ${checked?'checked':''} onchange="toggle('${i.id}')">
+   ${i.name} ${i.core?'<span class="badge">CORE</span>':''}
+   </label>
+   <span class="price">${f(price)}</span>
+   </div>`;
+  })
+
+  div.innerHTML=html;
+  root.appendChild(div);
+ })
+
+ const c=calc();
+
+ document.getElementById('breakdown').innerHTML=`
+ <div>Subtotal: ${f(c.raw)}</div>
+ <div>Descuento: -${f(c.discount)}</div>
+ <div>Impuesto: +${f(c.gross-c.net)}</div>
+ `;
+
+ document.getElementById('total').innerHTML=f(c.gross);
+}
+
+function toggle(id){
+ if(selected.has(id))selected.delete(id);else selected.add(id);
+ render();
+}
+
+function toggleApproval(){
+ approved=!approved;
+ const el=document.getElementById('approval');
+ el.innerText=approved?'✓ Cotización aprobada':'Confirmar aceptación';
+}
+
+async function downloadPDF(){
+ const el=document.getElementById('pdf');
+ const canvas=await html2canvas(el,{scale:2});
+ const img=canvas.toDataURL('image/png');
+ const pdf=new jspdf.jsPDF();
+ const w=210;
+ const h=canvas.height*w/canvas.width;
+ pdf.addImage(img,'PNG',0,0,w,h);
+ pdf.save('openclub-propuesta.pdf');
+}
+
+function sendWhatsApp(){
+ const c=calc();
+ const notes=document.getElementById('notes').value;
+ const msg=`Hola, apruebo la propuesta OPEN CLUB. Total: ${f(c.gross)}. ${notes}`;
+ window.open(`https://wa.me/56949873116?text=${encodeURIComponent(msg)}`,'_blank');
+}
+
+// --- BASIC TESTS ---
+(function tests(){
+ const t=calc();
+ console.assert(t.raw>0,'Raw should be > 0');
+ console.assert(t.gross>t.net,'Gross should be > net');
+})();
+
+render();
+</script>
+
+</body>
+</html>
