@@ -32,15 +32,11 @@
     *{ -webkit-tap-highlight-color:transparent; touch-action:manipulation; box-sizing:border-box; }
     body{ margin:0; background:#EFEFED; -webkit-font-smoothing:antialiased; font-family:Inter,sans-serif; }
 
-    .page{
-      width:100%; background:white;
-      margin:0 auto; position:relative;
-    }
+    .page{ width:100%; background:white; margin:0 auto; position:relative; }
     @media(min-width:768px){
       .page{ width:210mm; margin:2rem auto; box-shadow:0 30px 80px rgba(0,0,0,.18); }
     }
 
-    /* Hidden master for PDF capture */
     #pdf-master{
       position:absolute; left:-9999px; top:0;
       width:800px; background:white; padding:72px;
@@ -70,7 +66,6 @@
 
     ::-webkit-scrollbar{ width:3px; }
     ::-webkit-scrollbar-thumb{ background:#00D64F; border-radius:10px; }
-
     textarea{ resize:none; }
 
     @media print{
@@ -86,7 +81,7 @@
 <script type="text/babel">
 const { useState, useMemo, useEffect, useRef, useCallback } = React;
 
-// ─── CONSTANTS ───────────────────────────────────────────────────────────────
+// ─── CONSTANTS ────────────────────────────────────────────────────────────────
 const BASE_RATE = 25000;
 const DISCOUNT  = 0.20;
 const TAX_RATE  = 0.1375;
@@ -99,28 +94,28 @@ const PHASES = [
     items:[
       {
         id:'f1_0', name:'Sesión de Briefing & Definición', essential:true,
-        desc:'Reunión inicial de alineación estratégica. Exploramos objetivos, referentes visuales, tono de marca y definimos el roadmap creativo completo. Se genera un documento-brief que guía todo el proceso.',
-        hours:0, price:0, days:1
+        desc:'Reunión inicial de alineación estratégica. Exploramos objetivos, referentes visuales, tono de marca y definimos el roadmap creativo completo del proyecto. Se genera un documento-brief que guía cada etapa.',
+        hours:0, price:0
       },
       {
         id:'f1_1', name:'Logo Principal + Sistema Visual', essential:true,
         desc:'Desarrollo de 2 direcciones gráficas iniciales para evaluación. Incluye: símbolo, logotipo, versión horizontal, vertical y reducida (favicon), paleta de construcción y presentación comparativa.',
-        hours:14, days:5
+        hours:14
       },
       {
         id:'f1_2', name:'Manual de Marca Master', essential:true,
         desc:'Guía técnica integral: paleta de color (HEX + CMYK + Pantone), tipografía principal y de apoyo, normas de uso, espaciado mínimo, fondos permitidos y usos incorrectos. Entregado en PDF interactivo.',
-        price:100000, days:2
+        price:100000
       },
       {
         id:'f1_3', name:'Señalética Física (por pieza)', essential:true, canMultiply:true,
-        desc:'Diseño técnico de pieza gráfica para el local: cartel exterior, menú de pizarra, señal interior o vinil adhesivo. Archivo listo para imprenta (PDF sangrado 3 mm) incluido.',
-        price:50000, days:2
+        desc:'Diseño técnico de pieza gráfica para el local: cartel exterior, letrero interior, vinilo de vitrina, menú de pizarra, señal de caja, etc. Archivo listo para imprenta incluido.',
+        price:50000
       },
       {
         id:'f1_4', name:'Diseño de Menú Base', essential:true,
-        desc:'Maquetación editorial de carta: diseño de diagramación, jerarquía visual de contenidos, tipografía aplicada y normas de lectura. Entregado en PDF imprimible + InDesign/Figma editable.',
-        hours:6, days:3
+        desc:'Diseño editorial de carta aplicando el sistema visual de marca. Alcances: hasta 2 páginas (frente y dorso), 1 ronda de ajustes incluida, formato carta u oficio, versión para impresión y versión digital optimizada para Instagram Stories.',
+        hours:6
       }
     ]
   },
@@ -130,28 +125,28 @@ const PHASES = [
     items:[
       {
         id:'f2_1', name:'Stickers & Packaging',
-        desc:'Set de 5 variantes de etiquetas para packaging: bolsas, cajas, recipientes o envases. Formatos circular, kraft y rectangular. Todos en CMYK para impresión directa con impresor a domicilio.',
-        price:50000, days:1
+        desc:'Set de 5 variantes de etiquetas para packaging: bolsas, cajas, recipientes o envases. Formatos circular, rectangular y libre. Listos para impresión física y en PNG transparente para uso digital (WhatsApp, RRSS, etc.).',
+        price:50000
       },
       {
         id:'f2_pap', name:'Papelería Corporativa',
-        desc:'Diseño de 1 pieza impresa corporativa a elección: tarjetas de presentación (doble cara), flyer A5/A4, sobre americano o carpeta presentación. Archivo listo para proveedor incluido.',
-        price:50000, days:2
+        desc:'Diseño de 1 pieza impresa corporativa a elección: tarjetas de presentación (doble cara), flyer A5/A4, carpeta presentación, etc. Archivo listo para proveedor incluido.',
+        price:50000
       },
       {
         id:'f2_m', name:'Mascot / Personaje Identitario',
-        desc:'Creación del personaje Queenchis en 3 poses narrativas: presentación, acción y expresión emocional. Estilo nipón-gourmet. Entregado en PNG (fondo transparente) + SVG editable.',
-        price:50000, days:4
+        desc:'Creación del personaje Queenchis en 3 poses narrativas: presentación, acción y expresión emocional. Entregado en PNG (fondo transparente) + SVG editable para uso en cualquier soporte.',
+        price:50000
       },
       {
         id:'f2_p', name:'Dirección para Campaña de Lanzamiento',
         desc:'Conceptualización visual de campaña de apertura: moodboard directivo, paleta aplicada, copywriting de tono, narrativa de lanzamiento y 3 piezas de concepto para validación con el equipo.',
-        hours:6, days:3
+        hours:6
       },
       {
         id:'f2_f', name:'Sesión de Presentación & Cierre',
         desc:'Cierre formal de etapa: entrega de todos los activos organizados en carpeta Google Drive, presentación de resultados, resolución de ajustes finales y conformidad de la fase.',
-        price:0, days:1
+        price:0
       }
     ]
   },
@@ -162,35 +157,33 @@ const PHASES = [
       {
         id:'f3_1', name:'Landing Page (Diseño UI)',
         desc:'Interfaz web de una página de alto impacto conceptual. Diseñada en Figma y/o entregada en HTML/CSS estático responsivo. Incluye: hero, sección de menú destacado, galería, ubicación y CTA.',
-        hours:25, days:10
+        hours:25
       },
       {
         id:'f3_2', name:'12 Plantillas Editables RRSS',
         desc:'Set de 12 plantillas maestras en Canva Pro o Figma (a elección): 6 posts cuadrados + 6 stories verticales. Totalmente editables con los colores, fuentes y elementos de marca instalados.',
-        hours:6.5, days:3
+        hours:6.5
       },
       {
         id:'m_base', name:'Diseño para Merch / Indumentaria',
         desc:'Aplicación de marca en prendas o accesorios: delantales, tote bags, gorros o camisetas. Incluye archivo técnico para proveedor de serigrafía, sublimación o bordado.',
-        price:50000, days:2
+        price:50000
       },
       {
         id:'cons_1', name:'Consultoría Estratégica (bloque/hora)',
         desc:'Sesión táctica de 60 minutos para decisiones clave: selección de proveedores, materiales, extensiones de marca, estrategia de comunicación o revisión de artes previas. Reservable cuando se necesite.',
-        price:50000, days:0
+        price:50000
       }
     ]
   }
 ];
 
-const DEFAULT = new Set(['f1_0','f1_1','f1_2','f1_3','f1_4','f2_1','f2_pap','m_base','f2_f']);
+// f2_m (mascota) activada por defecto
+const DEFAULT = new Set(['f1_0','f1_1','f1_2','f1_3','f1_4','f2_1','f2_pap','f2_m','m_base','f2_f']);
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 const fCLP = (n) => '$' + Math.round(n || 0).toLocaleString('es-CL').replace(/,/g,'.');
-
-const unitPrice = (item) =>
-  item.price !== undefined ? item.price : item.hours * BASE_RATE;
-
+const unitPrice = (item) => item.price !== undefined ? item.price : item.hours * BASE_RATE;
 const lineTotal = (item, qty=1) => unitPrice(item) * qty;
 
 // ─── RADAR CHART ──────────────────────────────────────────────────────────────
@@ -207,10 +200,8 @@ function RadarChart({ data }) {
       <path d={path(data.map(d=>d.c))} fill="#9CA3AF" fillOpacity=".15" stroke="#9CA3AF" strokeWidth="1.5"/>
       <path d={path(data.map(d=>d.p))} fill="#00D64F" fillOpacity=".2" stroke="#00D64F" strokeWidth="2.5"/>
       {data.map((d,i)=>(
-        <text key={i}
-          x={C+(R+26)*Math.sin(i*step)} y={C-(R+18)*Math.cos(i*step)}
-          textAnchor="middle" fill="#6B7280" fontSize="7.5"
-          fontWeight="bold" fontFamily="Space Mono" letterSpacing="0.5">
+        <text key={i} x={C+(R+26)*Math.sin(i*step)} y={C-(R+18)*Math.cos(i*step)}
+          textAnchor="middle" fill="#6B7280" fontSize="7.5" fontWeight="bold" fontFamily="Space Mono" letterSpacing="0.5">
           {d.axis}
         </text>
       ))}
@@ -219,7 +210,7 @@ function RadarChart({ data }) {
 }
 
 // ─── COPY BUTTON ──────────────────────────────────────────────────────────────
-function CopyBtn({ text }) {
+function CopyBtn({ text, dark=false }) {
   const [ok, setOk] = useState(false);
   const copy = () => {
     const el = document.createElement('textarea');
@@ -231,13 +222,13 @@ function CopyBtn({ text }) {
   return (
     <button onClick={copy}
       className="ml-2 text-[9px] font-mono font-bold uppercase tracking-widest px-1.5 py-0.5 rounded transition-all"
-      style={{ background: ok ? '#00D64F' : '#27272a', color: ok ? '#000' : '#71717a' }}>
+      style={{ background: ok ? '#00D64F' : dark ? '#27272a' : '#e4e4e7', color: ok ? '#000' : dark ? '#71717a' : '#52525b' }}>
       {ok ? '✓' : 'copiar'}
     </button>
   );
 }
 
-// ─── APP ──────────────────────────────────────────────────────────────────────
+// ─── MAIN APP ─────────────────────────────────────────────────────────────────
 function App() {
   const [selected,  setSelected]  = useState(DEFAULT);
   const [qtys,      setQtys]      = useState({ f1_3:1 });
@@ -308,29 +299,24 @@ function App() {
     const planName = plan==='01' ? 'Protocolo Bifásico 50/50' : 'Estructura Trifásica 30/30/40';
     const msg = type==='payment'
       ? `Hola Javiera ✨ Apruebo la propuesta OPEN CLUB para *Queenchis*.\n\nPlan elegido: *${planName}*\nAbono inicial: *${fCLP(abonoInicial)}*\nTotal bruto: *${fCLP(calc.gross)}*\n\nAdjunto PDF y comprobante de pago.\n(Mis datos: RUT · Nombre completo · Domicilio · Comuna)`
-      : `Hola Javiera, tengo dudas sobre la propuesta de Queenchis. ¿Podemos conversar?`;
+      : `Hola Javiera, tengo una consulta sobre la propuesta de Queenchis. ¿Podemos conversar?`;
     window.open(`https://wa.me/56949873116?text=${encodeURIComponent(msg)}`,'_blank');
   };
 
   // ── PDF MASTER (oculto) ───────────────────────────────────────────────────
   const PdfMaster = (
     <div id="pdf-master" aria-hidden="true">
-      {/* Header */}
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-end',borderBottom:'2px solid #000',paddingBottom:24,marginBottom:32}}>
         <div>
           <div style={{fontSize:52,fontWeight:900,letterSpacing:'-2px',lineHeight:1}}>OPEN CLUB</div>
           <div style={{fontFamily:'Space Mono',fontSize:11,opacity:.45,marginTop:6,textTransform:'uppercase',letterSpacing:'2px'}}>Visual Infrastructure Studio</div>
         </div>
         <div style={{textAlign:'right',fontFamily:'Space Mono',fontSize:11,opacity:.55,lineHeight:2,textTransform:'uppercase'}}>
-          <div>REF: OCD-QCH-2026</div>
-          <div>Fecha: 22 Abril 2026</div>
+          <div>REF: OCD-QCH-2026</div><div>Fecha: 22 Abril 2026</div>
         </div>
       </div>
-      {/* Title */}
       <div style={{fontSize:30,fontWeight:900,textTransform:'uppercase',letterSpacing:'-0.5px',marginBottom:4}}>Propuesta de Cotización</div>
       <div style={{fontFamily:'Space Mono',fontSize:11,opacity:.45,textTransform:'uppercase',letterSpacing:'1px',marginBottom:44}}>Cliente: Queenchis — Galería La Pérgola, Providencia, Santiago</div>
-
-      {/* Lines */}
       <div style={{borderTop:'2px solid #000',paddingTop:16,marginBottom:36}}>
         <div style={{fontFamily:'Space Mono',fontSize:9,textTransform:'uppercase',letterSpacing:'2px',opacity:.4,marginBottom:14}}>Servicios incluidos en el plan</div>
         {calc.lines.map((l,i)=>(
@@ -339,8 +325,6 @@ function App() {
           </div>
         ))}
       </div>
-
-      {/* Financial breakdown */}
       <div style={{padding:32,background:'#F9FAFB',borderRadius:16,border:'1px solid #E5E7EB',marginBottom:36}}>
         <div style={{fontFamily:'Space Mono',fontSize:9,textTransform:'uppercase',letterSpacing:'2px',opacity:.4,marginBottom:18}}>Desglose tributario — SII Chile</div>
         {[
@@ -358,16 +342,12 @@ function App() {
           <span style={{fontSize:46,fontWeight:900,letterSpacing:'-2px'}}>{fCLP(calc.gross)}</span>
         </div>
       </div>
-
-      {/* Observations */}
       {notes && (
         <div style={{marginBottom:36,padding:24,borderLeft:'4px solid #00D64F',background:'#F0FDF4',borderRadius:'0 12px 12px 0'}}>
           <div style={{fontFamily:'Space Mono',fontSize:9,textTransform:'uppercase',letterSpacing:'2px',opacity:.45,marginBottom:10}}>Observaciones del cliente</div>
           <p style={{margin:0,fontSize:13,fontStyle:'italic',color:'#374151',lineHeight:1.7}}>"{notes}"</p>
         </div>
       )}
-
-      {/* Signatures */}
       <div style={{marginTop:60,display:'flex',justifyContent:'space-between',paddingTop:28,borderTop:'1px solid #E5E7EB'}}>
         <div style={{width:'42%'}}>
           <div style={{height:64,borderBottom:'2px solid #000',marginBottom:10}}></div>
@@ -389,7 +369,7 @@ function App() {
       {PdfMaster}
       <div className="page fade-up">
 
-        {/* ── 01 HEADER ─────────────────────────────────────────────── */}
+        {/* ── HEADER ──────────────────────────────────────────────────── */}
         <header className="flex flex-col md:flex-row justify-between items-start md:items-end px-8 md:px-14 py-8 md:py-10 border-b-2 border-black gap-4">
           <div>
             <div className="flex items-center gap-3 mb-1.5">
@@ -404,7 +384,7 @@ function App() {
           </div>
         </header>
 
-        {/* ── 02 HERO ───────────────────────────────────────────────── */}
+        {/* ── HERO ────────────────────────────────────────────────────── */}
         <section className="px-8 md:px-14 pt-10 pb-8 border-b border-ocd-border">
           <div className="font-mono text-[10px] text-ocd-green font-bold tracking-[0.4em] uppercase mb-3">Branding Strategy /// Client Proposal</div>
           <h2 className="text-4xl md:text-6xl font-black tracking-tighter uppercase leading-none text-black mb-5">
@@ -417,16 +397,16 @@ function App() {
           </div>
         </section>
 
-        {/* ── 03 CONTEXT ────────────────────────────────────────────── */}
+        {/* ── CONTEXT ─────────────────────────────────────────────────── */}
         <section className="px-8 md:px-14 py-10 border-b border-ocd-border">
           <div className="font-mono text-[10px] text-ocd-muted uppercase tracking-widest font-bold mb-5">/// 00 — Contexto del Proyecto</div>
           <div className="grid grid-cols-1 md:grid-cols-5 gap-8 items-start">
             <div className="md:col-span-3 space-y-4 text-[15px] text-zinc-600 leading-relaxed">
               <p>
-                <strong className="text-black">Queenchis</strong> es una sandwichería de autor cuya identidad toma como eje narrativo a la figura de Queen. Emplazada en la Galería La Pérgola de Providencia, propone una experiencia que combina el rigor de la cocina lenta —carnes braseadas, panes artesanales y salsas propias— con la estética visual y el sentido ceremonial de la cultura nipona.
+                <strong className="text-black">Queenchis</strong> es una sandwichería de autor cuya identidad toma como eje narrativo a la figura de Queen. Emplazada en la Galería La Pérgola de Providencia, propone una experiencia de cocina de autor con identidad propia.
               </p>
               <p>
-                El desafío de esta propuesta es <strong className="text-black">construir un sistema de marca escalable y de alto impacto</strong> que traduzca esa identidad híbrida (gourmet + street food + pop nipón) en una presencia visual cohesiva, técnicamente impecable y con capacidad de expansión hacia puntos de contacto físicos y digitales.
+                El desafío de esta propuesta es <strong className="text-black">construir un sistema de marca escalable y de alto impacto</strong> que traduzca esa identidad híbrida en una presencia visual cohesiva, técnicamente impecable y con capacidad de expansión hacia puntos de contacto físicos y digitales.
               </p>
               <p className="text-sm text-zinc-400 font-medium">
                 Open Club asume el diseño estratégico y la producción creativa integral, desde la identidad core hasta los entregables listos para imprenta y publicación en todas las plataformas relevantes.
@@ -453,8 +433,8 @@ function App() {
           </div>
         </section>
 
-        {/* ── 04 RADAR ──────────────────────────────────────────────── */}
-        <section className="px-8 md:px-14 py-10 border-b border-ocd-border bg-ocd-gray no-print">
+        {/* ── RADAR ───────────────────────────────────────────────────── */}
+        <section className="px-8 md:px-14 py-10 border-b border-ocd-border no-print">
           <div className="font-mono text-[10px] text-ocd-muted uppercase tracking-widest font-bold mb-2">/// 01 — Brand Potential Matrix</div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
             <div>
@@ -477,7 +457,27 @@ function App() {
           </div>
         </section>
 
-        {/* ── 05 NOTA DINÁMICA ──────────────────────────────────────── */}
+        {/* ── PASOS ───────────────────────────────────────────────────── */}
+        <section className="px-8 md:px-14 py-10 border-b border-ocd-border bg-ocd-gray no-print">
+          <div className="font-mono text-[10px] text-ocd-muted uppercase tracking-widest font-bold mb-2">/// Cómo usar esta propuesta</div>
+          <h3 className="text-2xl font-black uppercase tracking-tighter text-black mb-7">Pasos para iniciar</h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {[
+              {n:'01', t:'Personalizar', d:'Selecciona o desactiva servicios en la tabla según tu presupuesto y prioridades.'},
+              {n:'02', t:'Aprobar',      d:'Presiona el botón de aprobación para validar la cotización y generar el ID de contrato.'},
+              {n:'03', t:'Descargar',   d:'Descarga el PDF oficial como constancia y documento de referencia del acuerdo.'},
+              {n:'04', t:'Abonar',      d:'Realiza el abono inicial y notifica vía WhatsApp adjuntando el comprobante.'},
+            ].map(s=>(
+              <div key={s.n} className="bg-white rounded-2xl p-5 border border-ocd-border">
+                <div className="font-mono text-xl font-black text-ocd-green mb-2">{s.n}</div>
+                <div className="font-black text-[13px] uppercase tracking-tight text-black mb-2">{s.t}</div>
+                <p className="text-[12px] text-zinc-500 leading-relaxed">{s.d}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* ── NOTA DINÁMICA ───────────────────────────────────────────── */}
         <div className="mx-8 md:mx-14 my-8 p-5 border-2 border-dashed border-ocd-green bg-ocd-green/5 rounded-2xl no-print">
           <div className="flex items-start gap-3">
             <div className="bg-ocd-green text-black rounded-full w-5 h-5 flex items-center justify-center shrink-0 mt-0.5 font-black text-xs leading-none">!</div>
@@ -488,7 +488,7 @@ function App() {
           </div>
         </div>
 
-        {/* ── 06 SERVICES ───────────────────────────────────────────── */}
+        {/* ── SERVICES ────────────────────────────────────────────────── */}
         <section className="px-8 md:px-14 pb-12">
           <div className="flex items-end justify-between mb-6">
             <div>
@@ -510,8 +510,7 @@ function App() {
 
               return (
                 <div key={phase.id} className="border border-ocd-border rounded-2xl overflow-hidden shadow-sm">
-
-                  {/* Phase header row */}
+                  {/* Phase header */}
                   <div
                     className="flex items-center justify-between px-5 py-4 bg-ocd-gray cursor-pointer select-none active:bg-zinc-200 transition-colors no-print"
                     onClick={()=>togglePhase(phase.id)}
@@ -545,18 +544,17 @@ function App() {
                   {/* Phase items */}
                   {isExpanded && (
                     <div className="border-t border-ocd-border bg-white divide-y divide-zinc-50 fade-up">
-                      {/* Desktop column header */}
+                      {/* Desktop column header — sin columna de plazo */}
                       <div className="hidden md:grid grid-cols-12 bg-black text-white px-5 py-2.5 font-mono text-[9px] uppercase tracking-widest">
                         <div className="col-span-4">Servicio</div>
-                        <div className="col-span-5">Descripción del entregable</div>
-                        <div className="col-span-2 text-center">Plazo est.</div>
+                        <div className="col-span-7">Descripción del entregable</div>
                         <div className="col-span-1 text-right">Inversión</div>
                       </div>
 
                       {phaseItems.map(item=>{
-                        const isSel   = selected.has(item.id);
-                        const qty     = qtys[item.id]||1;
-                        const total   = lineTotal(item,qty);
+                        const isSel = selected.has(item.id);
+                        const qty   = qtys[item.id]||1;
+                        const total = lineTotal(item,qty);
 
                         return (
                           <div
@@ -586,15 +584,7 @@ function App() {
                                 </div>
                               </div>
                               {/* Description */}
-                              <div className="md:col-span-5 pl-8 md:pl-0 text-[13px] text-zinc-500 leading-relaxed">{item.desc}</div>
-                              {/* Days */}
-                              <div className="md:col-span-2 pl-8 md:pl-0 text-center">
-                                {item.days>0
-                                  ? <span className="font-mono text-[10px] text-zinc-400 bg-zinc-100 px-2 py-0.5 rounded uppercase">~{item.days}d</span>
-                                  : item.days===0 && item.price===0 ? null
-                                  : null
-                                }
-                              </div>
+                              <div className="md:col-span-7 pl-8 md:pl-0 text-[13px] text-zinc-500 leading-relaxed">{item.desc}</div>
                               {/* Price */}
                               <div className="md:col-span-1 pl-8 md:pl-0 text-left md:text-right font-mono text-[12px] font-bold text-ocd-muted">
                                 {total>0 ? fCLP(total) : <span className="text-ocd-green text-[10px] font-black uppercase">Cortesía</span>}
@@ -610,14 +600,13 @@ function App() {
             })}
           </div>
 
-          {/* Legend */}
           <div className="mt-4 flex items-center gap-2 no-print">
             <span className="text-ocd-green text-[11px]">✦</span>
             <span className="text-[11px] text-zinc-400 font-mono">Servicio esencial recomendado · Haz clic en cada fila para seleccionar o deseleccionar</span>
           </div>
         </section>
 
-        {/* ── 07 DELIVERABLES ───────────────────────────────────────── */}
+        {/* ── DELIVERABLES ────────────────────────────────────────────── */}
         <section className="px-8 md:px-14 py-10 border-t border-ocd-border bg-ocd-gray">
           <div className="font-mono text-[10px] text-ocd-muted uppercase tracking-widest font-bold mb-2">/// 03 — Handoff Protocol</div>
           <h3 className="text-2xl font-black uppercase tracking-tighter text-black mb-7">Entregables finales garantizados</h3>
@@ -633,7 +622,7 @@ function App() {
               },
               {
                 title:'Producción & Entrega',
-                items:['Archivos imprenta (sangrado 3mm)','Carpeta Google Drive organizada','Brief técnico para proveedores','Acceso a fuentes licenciadas del proyecto']
+                items:['Archivos listos para imprenta','Carpeta Google Drive organizada','Specs de producción para proveedores','Acceso a fuentes licenciadas del proyecto']
               }
             ].map(({title,items})=>(
               <div key={title} className="bg-white rounded-2xl p-5 border border-ocd-border">
@@ -651,27 +640,7 @@ function App() {
           </div>
         </section>
 
-        {/* ── 08 ACTIVATION STEPS ───────────────────────────────────── */}
-        <section className="px-8 md:px-14 py-10 border-t border-ocd-border">
-          <div className="font-mono text-[10px] text-ocd-muted uppercase tracking-widest font-bold mb-2">/// 04 — Activation Protocol</div>
-          <h3 className="text-2xl font-black uppercase tracking-tighter text-black mb-7">Pasos para iniciar</h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {[
-              {n:'01',t:'Personalizar', d:'Selecciona o desactiva servicios en la tabla de arriba según tu presupuesto y prioridades.'},
-              {n:'02',t:'Aprobar',      d:'Presiona el botón de aprobación para validar la cotización y generar el ID de contrato.'},
-              {n:'03',t:'Descargar',   d:'Descarga el PDF oficial de la propuesta como constancia y documento de referencia.'},
-              {n:'04',t:'Abonar',      d:'Realiza el abono inicial elegido y notifica vía WhatsApp adjuntando comprobante.'},
-            ].map(s=>(
-              <div key={s.n} className="bg-ocd-gray rounded-2xl p-5 border border-ocd-border">
-                <div className="font-mono text-xl font-black text-ocd-green mb-2">{s.n}</div>
-                <div className="font-black text-[13px] uppercase tracking-tight text-black mb-2">{s.t}</div>
-                <p className="text-[12px] text-zinc-500 leading-relaxed">{s.d}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* ── 09 NOTES ──────────────────────────────────────────────── */}
+        {/* ── NOTES ───────────────────────────────────────────────────── */}
         <section className="px-8 md:px-14 py-8 border-t border-ocd-border no-print">
           <div className="font-mono text-[10px] text-ocd-muted uppercase tracking-widest font-bold mb-2">/// Observaciones del cliente</div>
           <textarea
@@ -683,7 +652,7 @@ function App() {
           />
         </section>
 
-        {/* ── 10 SIGNATURES ─────────────────────────────────────────── */}
+        {/* ── SIGNATURES ──────────────────────────────────────────────── */}
         <section className="px-8 md:px-14 py-12 border-t border-ocd-border flex flex-col md:flex-row justify-between items-center md:items-end gap-12 relative">
           {/* Client approval */}
           <div className={`flex-1 w-full md:w-auto p-6 rounded-3xl border-2 transition-all duration-500 ${approved?'border-ocd-green bg-ocd-green/5 shadow-lg':'border-ocd-border bg-ocd-gray'}`}>
@@ -721,78 +690,84 @@ function App() {
           </div>
         </section>
 
-        {/* ── 11 CHECKOUT ───────────────────────────────────────────── */}
-        <section ref={checkoutRef} className="mx-4 md:mx-8 mb-10 bg-zinc-950 text-white rounded-[2.5rem] overflow-hidden no-print">
-          <div className="p-8 md:p-12">
-            {/* Section label */}
-            <div className="flex items-center gap-2.5 mb-4">
+        {/* ── CHECKOUT (estilo limpio, alineado con el resto del doc) ─── */}
+        <section ref={checkoutRef} className="border-t-2 border-black no-print">
+
+          {/* Label + título */}
+          <div className="px-8 md:px-14 pt-10 pb-8 border-b border-ocd-border">
+            <div className="flex items-center gap-2.5 mb-3">
               <div className="w-2 h-2 bg-ocd-green rounded-full animate-pulse"></div>
-              <span className="font-mono text-[11px] text-ocd-green font-bold uppercase tracking-widest">Inversión & Liquidación</span>
+              <span className="font-mono text-[10px] text-ocd-green font-bold uppercase tracking-widest">/// Inversión & Liquidación</span>
             </div>
-            <h3 className="text-3xl md:text-4xl font-black uppercase tracking-tighter mb-8 leading-none">Consolidado Final</h3>
+            <h3 className="text-4xl md:text-5xl font-black uppercase tracking-tighter text-black leading-none">Consolidado<br/>Final</h3>
+          </div>
 
-            {/* Price breakdown card */}
-            <div className="bg-white text-black rounded-3xl p-6 md:p-8 mb-7">
-              <div className="flex justify-between items-center mb-5 pb-4 border-b border-ocd-border">
-                <span className="font-mono text-[9px] text-ocd-muted uppercase tracking-[0.2em] font-bold">Desglose del plan personalizado</span>
-                <span className="font-mono text-[9px] font-bold bg-zinc-100 px-2.5 py-1 rounded-full text-zinc-600">{calc.count} servicios activos</span>
-              </div>
-              <div className="space-y-3 mb-6">
-                {[
-                  { label:'Inversión nominal',           value:fCLP(calc.raw),      green:false, muted:false },
-                  { label:'Open Ticket Benefit (−20%)',  value:`−${fCLP(calc.discount)}`, green:true, muted:false },
-                  { label:'Subtotal neto líquido',       value:fCLP(calc.net),      green:false, muted:true },
-                  { label:'Retención SII (13.75%)',      value:fCLP(calc.tax),      green:false, muted:true },
-                ].map(({label,value,green,muted})=>(
-                  <div key={label} className="flex justify-between items-baseline">
-                    <span className={`font-mono uppercase tracking-widest text-[10px] font-bold ${green?'text-ocd-green':muted?'text-zinc-400':'text-ocd-muted'}`}>{label}</span>
-                    <span className={`font-mono font-black text-[14px] ${green?'text-ocd-green':muted?'text-zinc-400':''}`}>{value}</span>
-                  </div>
-                ))}
-              </div>
-              <div className="border-t-2 border-black pt-5 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-2">
-                <span className="font-mono text-[9px] uppercase tracking-[0.2em] text-ocd-muted font-bold">Total inversión bruta (boleta honorarios)</span>
-                <span className="text-4xl md:text-5xl font-black tracking-tighter text-black">{fCLP(calc.gross)}</span>
-              </div>
+          {/* Price breakdown */}
+          <div className="px-8 md:px-14 py-8 border-b border-ocd-border">
+            <div className="flex justify-between items-center mb-5">
+              <span className="font-mono text-[10px] text-ocd-muted uppercase tracking-widest font-bold">Desglose del plan personalizado</span>
+              <span className="font-mono text-[9px] font-bold bg-ocd-gray border border-ocd-border px-2.5 py-1 rounded-full text-zinc-600">{calc.count} servicios activos</span>
             </div>
-
-            {/* Payment plans */}
-            <div className="space-y-3 mb-8">
+            <div className="space-y-3 mb-6">
               {[
-                {id:'01', title:'Protocolo Bifásico',   sub:'Inicio (50%) · Cierre & Handoff (50%)',          amount:abono50, tag:'Recomendado'},
-                {id:'02', title:'Estructura Trifásica', sub:'Activación (30%) · Concepto (30%) · Entrega (40%)', amount:abono30, tag:'Flexible'},
+                { label:'Inversión nominal',          value:fCLP(calc.raw),             green:false, muted:false },
+                { label:'Open Ticket Benefit (−20%)', value:`−${fCLP(calc.discount)}`,  green:true,  muted:false },
+                { label:'Subtotal neto líquido',      value:fCLP(calc.net),             green:false, muted:true  },
+                { label:'Retención SII (13.75%)',     value:fCLP(calc.tax),             green:false, muted:true  },
+              ].map(({label,value,green,muted})=>(
+                <div key={label} className="flex justify-between items-baseline border-b border-ocd-border pb-3 last:border-none">
+                  <span className={`font-mono uppercase tracking-widest text-[10px] font-bold ${green?'text-ocd-green':muted?'text-zinc-400':'text-ocd-muted'}`}>{label}</span>
+                  <span className={`font-mono font-black text-[15px] ${green?'text-ocd-green':muted?'text-zinc-400':'text-black'}`}>{value}</span>
+                </div>
+              ))}
+            </div>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-2 pt-2 border-t-2 border-black">
+              <span className="font-mono text-[10px] uppercase tracking-widest text-ocd-muted font-bold">Total inversión bruta (boleta honorarios)</span>
+              <span className="text-5xl md:text-6xl font-black tracking-tighter text-black">{fCLP(calc.gross)}</span>
+            </div>
+          </div>
+
+          {/* Payment plans */}
+          <div className="px-8 md:px-14 py-8 border-b border-ocd-border">
+            <div className="font-mono text-[10px] text-ocd-muted uppercase tracking-widest font-bold mb-5">Elige tu plan de pago</div>
+            <div className="space-y-3">
+              {[
+                {id:'01', title:'Protocolo Bifásico',   sub:'Inicio (50%) · Cierre & Handoff (50%)',              amount:abono50},
+                {id:'02', title:'Estructura Trifásica', sub:'Activación (30%) · Concepto (30%) · Entrega (40%)',  amount:abono30},
               ].map(p=>(
                 <button
                   key={p.id} type="button"
                   onClick={()=>setPlan(p.id)}
-                  className={`w-full text-left border-2 rounded-2xl p-5 md:p-6 transition-all duration-200 outline-none ${plan===p.id?'border-ocd-green bg-zinc-900 scale-[1.01]':'border-zinc-800 bg-zinc-900/40 opacity-60 hover:opacity-90 hover:border-zinc-700'}`}
+                  className={`w-full text-left border-2 rounded-2xl p-5 md:p-6 transition-all duration-200 outline-none ${plan===p.id?'border-ocd-green bg-ocd-green/5':'border-ocd-border bg-ocd-gray opacity-70 hover:opacity-100 hover:border-zinc-400'}`}
                 >
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div className="flex items-center gap-4">
-                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${plan===p.id?'border-ocd-green':'border-zinc-600'}`}>
+                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${plan===p.id?'border-ocd-green':'border-zinc-400'}`}>
                         {plan===p.id && <div className="w-2.5 h-2.5 bg-ocd-green rounded-full"></div>}
                       </div>
                       <div>
-                        <div className={`font-bold text-lg leading-none mb-1 ${plan===p.id?'text-ocd-green':'text-zinc-400'}`}>{p.title}</div>
-                        <div className="text-[10px] text-zinc-500 font-mono uppercase tracking-widest">{p.sub}</div>
+                        <div className={`font-bold text-lg leading-none mb-1 ${plan===p.id?'text-black':'text-zinc-500'}`}>{p.title}</div>
+                        <div className="text-[10px] text-ocd-muted font-mono uppercase tracking-widest">{p.sub}</div>
                       </div>
                     </div>
                     <div className="text-left sm:text-right pl-9 sm:pl-0 shrink-0">
-                      <div className="text-[9px] font-mono uppercase tracking-widest text-zinc-500 mb-0.5">Abono inicial</div>
-                      <div className={`font-mono font-black text-2xl md:text-3xl ${plan===p.id?'text-ocd-green':'text-white'}`}>{fCLP(p.amount)}</div>
+                      <div className="text-[9px] font-mono uppercase tracking-widest text-ocd-muted mb-0.5">Abono inicial</div>
+                      <div className={`font-mono font-black text-3xl ${plan===p.id?'text-ocd-green':'text-zinc-500'}`}>{fCLP(p.amount)}</div>
                     </div>
                   </div>
                 </button>
               ))}
             </div>
+          </div>
 
-            {/* Bank + actions grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Bank card */}
-              <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
-                <div className="font-mono text-[9px] text-zinc-500 uppercase tracking-[0.25em] font-bold mb-4">Datos de transferencia bancaria</div>
-                <div className="font-black text-xl text-white mb-4">Javiera Saint-Jour</div>
-                <div className="space-y-2">
+          {/* Bank + Actions */}
+          <div className="px-8 md:px-14 py-8 border-b border-ocd-border">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {/* Bank details */}
+              <div>
+                <div className="font-mono text-[10px] text-ocd-muted uppercase tracking-widest font-bold mb-4">Datos de transferencia</div>
+                <div className="font-black text-xl text-black mb-4">Javiera Saint-Jour</div>
+                <div className="space-y-2 bg-ocd-gray rounded-2xl p-5 border border-ocd-border">
                   {[
                     ['RUT',     '18.445.291-K'],
                     ['Banco',   'Scotiabank'],
@@ -800,10 +775,10 @@ function App() {
                     ['Número',  '976998219'],
                     ['Email',   'openclubdesign@gmail.com'],
                   ].map(([k,v])=>(
-                    <div key={k} className="flex items-center justify-between py-1 border-b border-zinc-800 last:border-none">
-                      <span className="text-zinc-600 font-mono text-[9px] uppercase tracking-widest">{k}</span>
+                    <div key={k} className="flex items-center justify-between py-1.5 border-b border-ocd-border last:border-none">
+                      <span className="text-ocd-muted font-mono text-[9px] uppercase tracking-widest font-bold">{k}</span>
                       <div className="flex items-center">
-                        <span className="font-mono text-[12px] text-zinc-300">{v}</span>
+                        <span className="font-mono text-[12px] text-black font-bold">{v}</span>
                         <CopyBtn text={v}/>
                       </div>
                     </div>
@@ -811,15 +786,15 @@ function App() {
                 </div>
               </div>
 
-              {/* Actions */}
-              <div className="flex flex-col gap-3">
-                <p className="text-[12px] text-zinc-500 leading-relaxed font-medium px-1">
-                  Descarga el PDF, realiza el abono elegido y notifica por WhatsApp adjuntando el comprobante de pago y tus datos tributarios.
+              {/* CTA Buttons */}
+              <div className="flex flex-col justify-center gap-3">
+                <p className="text-[13px] text-zinc-500 leading-relaxed">
+                  Descarga el PDF con la propuesta, realiza el abono del plan elegido y notifica vía WhatsApp adjuntando el comprobante y tus datos tributarios.
                 </p>
                 <button
                   onClick={downloadPDF}
                   disabled={exporting}
-                  className={`flex items-center justify-center gap-3 bg-white text-black font-mono font-black text-[12px] py-4 px-6 rounded-2xl uppercase tracking-widest transition-all ${exporting?'opacity-50':'hover:bg-zinc-100 active:scale-95'}`}
+                  className={`flex items-center justify-center gap-3 bg-black text-white font-mono font-black text-[12px] py-4 px-6 rounded-2xl uppercase tracking-widest transition-all ${exporting?'opacity-50':'hover:bg-zinc-800 active:scale-95'}`}
                 >
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
@@ -829,31 +804,57 @@ function App() {
                 <button
                   onClick={()=>sendWhatsApp('payment')}
                   className="flex items-center justify-center gap-3 bg-ocd-green text-black font-mono font-black text-[12px] py-4 px-6 rounded-2xl uppercase tracking-widest hover:brightness-110 active:scale-95 transition-all"
-                  style={{boxShadow:'0 0 28px rgba(0,214,79,.3)'}}
                 >
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                     <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
                   </svg>
                   2 · Notificar vía WhatsApp
                 </button>
-                <button
-                  onClick={()=>sendWhatsApp('help')}
-                  className="flex items-center justify-center gap-2 bg-transparent text-zinc-400 border border-zinc-700 font-mono font-bold text-[11px] py-3 px-6 rounded-2xl uppercase tracking-widest hover:border-zinc-500 hover:text-white active:scale-95 transition-all"
-                >
-                  ✶ Tengo una duda · Conversar ahora
-                </button>
-              </div>
-            </div>
-
-            {/* Footer */}
-            <div className="mt-12 text-center border-t border-zinc-800 pt-8">
-              <div className="text-zinc-600 font-mono text-[10px] uppercase tracking-[0.3em] mb-3">muchas gracias ♡</div>
-              <div className="text-ocd-green text-2xl md:text-3xl font-black tracking-tighter italic"
-                style={{textShadow:'0 0 24px rgba(0,214,79,.35)'}}>
-                ~✷ será hermoso ✷~
               </div>
             </div>
           </div>
+
+          {/* ── CONTACTO ──────────────────────────────────────────────── */}
+          <div className="px-8 md:px-14 py-10 border-b border-ocd-border bg-ocd-gray">
+            <div className="font-mono text-[10px] text-ocd-muted uppercase tracking-widest font-bold mb-2">/// Estoy aquí para ti</div>
+            <h3 className="text-2xl font-black uppercase tracking-tighter text-black mb-2">Disponible para cualquier consulta</h3>
+            <p className="text-[14px] text-zinc-500 leading-relaxed mb-7 max-w-xl">
+              Cualquier duda sobre los servicios, los alcances, los plazos o el proceso creativo, con gusto la resolvemos antes de tomar cualquier decisión. No hay consulta pequeña.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <button
+                onClick={()=>sendWhatsApp('help')}
+                className="flex items-center justify-center gap-2.5 bg-white border-2 border-ocd-border text-black font-mono font-black text-[12px] py-4 px-6 rounded-2xl uppercase tracking-widest hover:border-ocd-green hover:text-ocd-green active:scale-95 transition-all"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+                </svg>
+                Escribir por WhatsApp
+              </button>
+              <a
+                href="mailto:openclubdesign@gmail.com"
+                className="flex items-center justify-center gap-2.5 bg-white border-2 border-ocd-border text-black font-mono font-black text-[12px] py-4 px-6 rounded-2xl uppercase tracking-widest hover:border-ocd-green hover:text-ocd-green active:scale-95 transition-all"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>
+                </svg>
+                Escribir por email
+              </a>
+            </div>
+          </div>
+
+          {/* Footer cierre */}
+          <div className="px-8 md:px-14 py-10 flex flex-col md:flex-row justify-between items-center gap-4">
+            <div>
+              <div className="font-black text-xl uppercase tracking-tighter text-black">Javiera Saint-Jour</div>
+              <div className="font-mono text-[10px] text-ocd-muted uppercase tracking-widest mt-1">Dirección Creativa · Open Club · openclubdesign@gmail.com</div>
+            </div>
+            <div className="text-center md:text-right">
+              <div className="font-mono text-[10px] text-zinc-400 uppercase tracking-widest mb-1">muchas gracias ♡</div>
+              <div className="text-ocd-green text-xl font-black tracking-tighter italic">~✷ será hermoso ✷~</div>
+            </div>
+          </div>
+
         </section>
 
       </div>
@@ -863,12 +864,12 @@ function App() {
 
 // ─── SANITY CHECKS ────────────────────────────────────────────────────────────
 (function tests(){
-  const raw = 14*25000 + 100000; // logo + manual
+  const raw = 14*25000 + 100000;
   const net  = raw * (1 - 0.2);
   const gross = net / (1 - 0.1375);
-  console.assert(raw > 0,       '[OCD] raw > 0');
-  console.assert(net < raw,     '[OCD] net < raw after discount');
-  console.assert(gross > net,   '[OCD] gross > net (tax adds on top)');
+  console.assert(raw > 0,     '[OCD] raw > 0');
+  console.assert(net < raw,   '[OCD] net < raw after discount');
+  console.assert(gross > net, '[OCD] gross > net (tax adds on top)');
   console.log('[OCD] Sanity checks passed ✓');
 })();
 
