@@ -285,11 +285,28 @@ function App() {
     await new Promise(r=>setTimeout(r,700));
     try {
       const el = document.getElementById('pdf-master');
-      const canvas = await html2canvas(el, { scale:2.5, useCORS:true, backgroundColor:'#fff', logging:false, windowWidth:800 });
-      const img = canvas.toDataURL('image/png',1.0);
-      const pdf = new jspdf.jsPDF('p','mm','a4');
-      const w=210, h=(canvas.height*w)/canvas.width;
-      pdf.addImage(img,'PNG',0,0,w,h,undefined,'FAST');
+      const canvas = await html2canvas(el, { scale:2, useCORS:true, backgroundColor:'#fff', logging:false, windowWidth:800 });
+      const img  = canvas.toDataURL('image/png', 1.0);
+      const pdf  = new jspdf.jsPDF('p','mm','a4');
+      const pageW = 210, pageH = 297;
+      const imgW  = pageW;
+      const imgH  = (canvas.height * imgW) / canvas.width;
+
+      let remaining = imgH;
+      let offset    = 0;
+
+      // Primera página
+      pdf.addImage(img, 'PNG', 0, offset, imgW, imgH, undefined, 'FAST');
+      remaining -= pageH;
+
+      // Páginas adicionales si el contenido excede una hoja
+      while (remaining > 0) {
+        offset -= pageH;
+        pdf.addPage();
+        pdf.addImage(img, 'PNG', 0, offset, imgW, imgH, undefined, 'FAST');
+        remaining -= pageH;
+      }
+
       pdf.save('OCD_Propuesta_Queenchis_2026.pdf');
     } catch(e){ console.error(e); }
     finally { setExporting(false); }
