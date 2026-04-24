@@ -1,1118 +1,444 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Propuesta Estratégica — Queenchis × OPEN CLUB</title>
+import React, { useState, useMemo } from 'react';
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
-  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+/**
+ * Propuesta Estratégica - Queenchis | OPEN CLUB
+ * Visualización interactiva basada en el código original y referencia image_53ed3d.jpg
+ */
 
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            ocd: { black:'#0B0B0C', green:'#00D64F', gray:'#F5F5F4', muted:'#6B7280', border:'#E5E7EB' }
-          },
-          fontFamily: { sans:['Inter','sans-serif'], mono:['Space Mono','monospace'] }
-        }
-      }
-    }
-  </script>
+const fCLP = (num) => '$' + Math.round(num).toLocaleString('es-CL');
 
-  <style>
-    *{ -webkit-tap-highlight-color:transparent; touch-action:manipulation; box-sizing:border-box; }
-    body{ margin:0; background:#EFEFED; -webkit-font-smoothing:antialiased; font-family:Inter,sans-serif; }
+const BASE_RATE = 25000;
+const DISCOUNT_PCT = 0.20;
 
-    .page{ width:100%; background:white; margin:0 auto; position:relative; }
-    @media(min-width:768px){
-      .page{ width:210mm; margin:2rem auto; box-shadow:0 30px 80px rgba(0,0,0,.18); }
-    }
-
-    #pdf-master{
-      position:absolute; left:-9999px; top:0;
-      width:860px; background:white; padding:64px 72px;
-      font-family:Inter,sans-serif; color:#111;
-    }
-
-    @keyframes fadeUp{
-      from{ opacity:0; transform:translateY(6px); }
-      to{ opacity:1; transform:translateY(0); }
-    }
-    .fade-up{ animation:fadeUp .3s ease-out forwards; }
-
-    @keyframes pulseGreen{
-      0%,100%{ box-shadow:0 0 0 0 rgba(0,214,79,.45); }
-      50%{ box-shadow:0 0 0 7px rgba(0,214,79,0); }
-    }
-    .pulse-dot{ animation:pulseGreen 2s infinite; }
-
-    @keyframes rotateSeal{ to{ transform:rotate(360deg); } }
-    .seal-ring{ animation:rotateSeal 14s linear infinite; transform-origin:center; }
-
-    @keyframes stampIn{
-      from{ opacity:0; transform:rotate(-12deg) scale(.7); }
-      to{ opacity:.75; transform:rotate(-12deg) scale(1); }
-    }
-    .stamp-in{ animation:stampIn .35s cubic-bezier(.22,1,.36,1) forwards; }
-
-    @keyframes slideIn{
-      from{ opacity:0; transform:translateY(-4px); }
-      to{ opacity:1; transform:translateY(0); }
-    }
-    .slide-in{ animation:slideIn .2s ease-out forwards; }
-
-    ::-webkit-scrollbar{ width:3px; }
-    ::-webkit-scrollbar-thumb{ background:#00D64F; border-radius:10px; }
-    textarea{ resize:none; }
-
-    .service-row:hover { background: rgba(0,214,79,0.03) !important; }
-    .service-row.selected:hover { background: rgba(0,214,79,0.06) !important; }
-
-    @media print{
-      .no-print{ display:none !important; }
-      body{ background:white; }
-      .page{ box-shadow:none; margin:0; width:100%; }
-    }
-  </style>
-</head>
-<body>
-<div id="root"></div>
-
-<script type="text/babel">
-const { useState, useMemo, useEffect, useRef, useCallback } = React;
-
-// ─── CONSTANTS ────────────────────────────────────────────────────────────────
-const BASE_RATE           = 25000;
-const DISCOUNT            = 0.20;
-const TAX_RATE            = 0.1375;
-const QUOTE_VALIDITY_DAYS = 15;
-const TODAY = new Date();
-
-// ─── DATA ─────────────────────────────────────────────────────────────────────
 const PHASES = [
   {
-    id:'f1', title:'Fase 1 · Identidad & Fundación',
-    tag:'NECESARIA', tagCls:'bg-ocd-green text-black font-black',
-    items:[
-      {
-        id:'f1_0', name:'Sesión de Briefing & Definición', essential:true,
-        desc:'Reunión inicial de alineación estratégica. Exploramos objetivos, referentes visuales, tono de marca y definimos el roadmap creativo completo del proyecto. Se genera un documento-brief que guía cada etapa.',
-        hours:0, price:0
-      },
-      {
-        id:'f1_1', name:'Logo Principal + Sistema Visual', essential:true,
-        desc:'Desarrollo de 2 direcciones gráficas iniciales para evaluación. Incluye: símbolo, logotipo, versión horizontal, vertical y reducida (favicon), paleta de construcción y presentación comparativa.',
-        hours:14
-      },
-      {
-        id:'f1_2', name:'Manual de Marca Master', essential:true,
-        desc:'Guía técnica integral: paleta de color (HEX + CMYK + Pantone), tipografía principal y de apoyo, normas de uso, espaciado mínimo, fondos permitidos y usos incorrectos. Entregado en PDF interactivo.',
-        price:100000
-      },
-      {
-        id:'f1_3', name:'Señalética Física (por pieza)', essential:true, canMultiply:true,
-        desc:'Diseño técnico de pieza gráfica para el local: cartel exterior, letrero interior, vinilo de vitrina, menú de pizarra, señal de caja, etc. Archivo listo para imprenta incluido.',
-        price:50000
-      },
-      {
-        id:'f1_4', name:'Diseño de Menú Base', essential:true,
-        desc:'Diseño editorial de carta aplicando el sistema visual de marca. Alcances: hasta 2 páginas (frente y dorso), 1 ronda de ajustes incluida, formato carta u oficio, versión para impresión y versión digital optimizada para Instagram Stories.',
-        hours:6
-      }
+    id: 'f1',
+    title: 'Fase 1: Identidad & Fundación',
+    tag: 'NECESARIA',
+    color: 'bg-[#4ADE80] text-black font-bold',
+    items: [
+      { id: 'f1_0', name: 'Reunión: Briefing & definición', desc: 'Alineación de objetivos y marco estratégico del proyecto (sesión de cortesía).', hours: 0, days: 1, priceOverride: 0, isEssential: true },
+      { id: 'f1_1', name: 'Logo principal + sistema visual', desc: 'Desarrollo de 2 direcciones gráficas estratégicas, versiones oficiales y reducciones técnicas.', hours: 14.0, days: 5, isEssential: true },
+      { id: 'f1_2', name: 'Manual de marca', desc: 'Guía técnica integral que consolida paleta de colores (burdeo, negro, blanco), familia tipográfica y normas de uso.', hours: 5.0, days: 2, isEssential: true },
+      { id: 'f1_3', name: 'Señalética física', desc: 'Diseño técnico de señalización de marca para el local físico en Providencia.', hours: 4.0, days: 2, isEssential: true },
+      { id: 'f1_4', name: 'Diseño de menú base', desc: 'Diseño de 1 ejemplar maestro de carta. Arquitectura de contenido para destacar la propuesta de autor.', hours: 6.0, days: 3, isEssential: true }
     ]
   },
   {
-    id:'f2', title:'Fase 2 · Expansión & Arte Visual',
-    tag:'SUGERIDA', tagCls:'bg-black text-ocd-green font-black',
-    items:[
-      {
-        id:'f2_1', name:'Stickers & Packaging',
-        desc:'Set de 5 variantes de etiquetas para packaging: bolsas, cajas, recipientes o envases. Formatos circular, rectangular y libre. Listos para impresión física y en PNG transparente para uso digital (WhatsApp, RRSS, etc.).',
-        price:50000
-      },
-      {
-        id:'f2_pap', name:'Papelería Corporativa',
-        desc:'Diseño de 1 pieza impresa corporativa a elección: tarjetas de presentación (doble cara), flyer A5/A4, carpeta presentación, etc. Archivo listo para proveedor incluido.',
-        price:50000
-      },
-      {
-        id:'f2_m', name:'Mascot / Personaje Identitario',
-        desc:'Creación del personaje Queenchis en 3 poses narrativas: presentación, acción y expresión emocional. Entregado en PNG (fondo transparente) + SVG editable para uso en cualquier soporte.',
-        price:50000
-      },
-      {
-        id:'f2_p', name:'Dirección para Campaña de Lanzamiento',
-        desc:'Conceptualización visual de campaña de apertura: moodboard directivo, paleta aplicada, copywriting de tono, narrativa de lanzamiento y 3 piezas de concepto para validación con el equipo.',
-        hours:6
-      },
-      {
-        id:'f2_f', name:'Sesión de Presentación & Cierre',
-        desc:'Cierre formal de etapa: entrega de todos los activos organizados en carpeta Google Drive, presentación de resultados, resolución de ajustes finales y conformidad de la fase.',
-        price:0
-      }
+    id: 'f2',
+    title: 'Fase 2: Expansión & Arte visual',
+    tag: 'SUGERIDA',
+    color: 'bg-black text-[#4ADE80]',
+    items: [
+      { id: 'f2_1', name: 'Stickers packaging', desc: 'Diseño de 2 variantes de etiquetas de marca y sellos de seguridad para despachos y delivery.', hours: 2.0, days: 1 },
+      { id: 'f2_m', name: 'Ilustración / Mascot creation', desc: 'Desarrollo de mascota animada basada en la perrita Queen (estilo Japón, Shih-tzu/Maltés mix) en 3 poses.', hours: 8.0, days: 4 },
+      { id: 'f2_p', name: 'Dirección creativa para campaña', desc: 'Conceptos visuales y narrativa para el lanzamiento del local y redes sociales.', hours: 6.0, days: 3 },
+      { id: 'f2_f', name: 'Reunión: Presentación final', desc: 'Cierre de etapa de diseño y entrega oficial de activos del sistema (sesión de cortesía).', hours: 0, days: 1, priceOverride: 0 }
     ]
   },
   {
-    id:'f3', title:'Fase 3 · Digital & Merch',
-    tag:'OPCIONAL', tagCls:'bg-zinc-100 text-zinc-500 font-black',
-    items:[
-      {
-        id:'f3_1', name:'Landing Page (Diseño UI)',
-        desc:'Interfaz web de una página de alto impacto conceptual. Diseñada en Figma y/o entregada en HTML/CSS estático responsivo. Incluye: hero, sección de menú destacado, galería, ubicación y CTA.',
-        hours:25
-      },
-      {
-        id:'f3_2', name:'12 Plantillas Editables RRSS',
-        desc:'Set de 12 plantillas maestras en Canva Pro o Figma (a elección): 6 posts cuadrados + 6 stories verticales. Totalmente editables con los colores, fuentes y elementos de marca instalados.',
-        hours:6.5
-      },
-      {
-        id:'m_base', name:'Diseño para Merch / Indumentaria',
-        desc:'Aplicación de marca en prendas o accesorios: delantales, tote bags, gorros o camisetas. Incluye archivo técnico para proveedor de serigrafía, sublimación o bordado.',
-        price:50000
-      },
-      {
-        id:'cons_1', name:'Consultoría Estratégica (bloque/hora)',
-        desc:'Sesión táctica de 60 minutos para decisiones clave: selección de proveedores, materiales, extensiones de marca, estrategia de comunicación o revisión de artes previas. Reservable cuando se necesite.',
-        price:50000
-      }
+    id: 'f3',
+    title: 'Fase 3: Entorno digital & Merch',
+    tag: 'OPCIONAL',
+    color: 'bg-zinc-100 text-zinc-500',
+    items: [
+      { id: 'f3_1', name: 'Landing page (Diseño UI o HTML)', desc: 'Interfaz de alto impacto entregada en Figma o código HTML listo para ser implementado en web.', hours: 25.0, days: 10 },
+      { id: 'f3_2', name: '12 plantillas editables RRSS', desc: 'Set de 12 plantillas maestras a elección del cliente (pueden ser Posts o Stories).', hours: 6.5, days: 3 },
+      { id: 'm_base', name: 'Merch / Diseño base', desc: 'Aplicación simple en delantales, bolsas tote e indumentaria varia.', hours: 2.5, days: 2 },
+      { id: 'm_complex', name: 'Merch / Diseño ilustrado', desc: 'Arte a gran escala o ilustración compleja aplicada a soportes textiles premium.', hours: 5.5, days: 4 },
+      { id: 'cons_1', name: 'Consultoría estratégica', desc: 'Asesoría técnica para la toma de decisiones tácticas o expansivas (valor por hora).', hours: 1.0, days: 0, priceOverride: 50000 }
     ]
   }
 ];
 
-const DEFAULT = new Set(['f1_0','f1_1','f1_2','f1_3','f1_4','f2_1','f2_pap','f2_m','m_base','f2_f']);
+const RadarChart = ({ data }) => {
+  const points = data.length;
+  const radius = 68;
+  const center = 100;
+  const angleStep = (Math.PI * 2) / points;
 
-// ─── HELPERS ──────────────────────────────────────────────────────────────────
-const fCLP       = (n) => '$' + Math.round(n || 0).toLocaleString('es-CL').replace(/,/g,'.');
-const unitPrice  = (item) => item.price !== undefined ? item.price : item.hours * BASE_RATE;
-const lineTotal  = (item, qty=1) => unitPrice(item) * qty;
-const addDays    = (d, n) => { const r=new Date(d); r.setDate(r.getDate()+n); return r; };
-const EXPIRY     = addDays(TODAY, QUOTE_VALIDITY_DAYS);
-const fDate      = (d) => d.toLocaleDateString('es-CL',{day:'numeric',month:'long',year:'numeric'});
+  const getPath = (values) => {
+    return values.map((val, i) => {
+      const r = (val / 10) * radius;
+      const x = center + r * Math.sin(i * angleStep);
+      const y = center - r * Math.cos(i * angleStep);
+      return `${i === 0 ? 'M' : 'L'} ${x} ${y}`;
+    }).join(' ') + ' Z';
+  };
 
-// ─── RADAR CHART ──────────────────────────────────────────────────────────────
-function RadarChart({ data }) {
-  const N=data.length, R=68, C=100, step=(Math.PI*2)/N;
-  const path=(vals)=>vals.map((v,i)=>{
-    const r=(v/10)*R;
-    return `${i===0?'M':'L'} ${C+r*Math.sin(i*step)} ${C-r*Math.cos(i*step)}`;
-  }).join(' ')+'Z';
   return (
-    <svg viewBox="0 0 200 200" className="w-full max-w-[260px] mx-auto">
-      {[.2,.4,.6,.8,1].map((p,i)=><circle key={i} cx={C} cy={C} r={R*p} stroke="#E5E7EB" strokeWidth="1" fill="none"/>)}
-      {data.map((_,i)=><line key={i} x1={C} y1={C} x2={C+R*Math.sin(i*step)} y2={C-R*Math.cos(i*step)} stroke="#E5E7EB" strokeWidth="1"/>)}
-      <path d={path(data.map(d=>d.c))} fill="#9CA3AF" fillOpacity=".15" stroke="#9CA3AF" strokeWidth="1.5"/>
-      <path d={path(data.map(d=>d.p))} fill="#00D64F" fillOpacity=".2" stroke="#00D64F" strokeWidth="2.5"/>
-      {data.map((d,i)=>(
-        <text key={i} x={C+(R+26)*Math.sin(i*step)} y={C-(R+18)*Math.cos(i*step)}
-          textAnchor="middle" fill="#6B7280" fontSize="7.5" fontWeight="bold" fontFamily="Space Mono" letterSpacing="0.5">
-          {d.axis}
-        </text>
+    <svg viewBox="0 0 200 200" className="w-full h-full max-w-[320px] mx-auto overflow-visible font-sans">
+      {[0.2, 0.4, 0.6, 0.8, 1].map((p, i) => (
+        <circle key={i} cx={center} cy={center} r={radius * p} className="stroke-[#E5E7EB] fill-none stroke-[1px]" />
       ))}
+      {data.map((_, i) => {
+        const x2 = center + radius * Math.sin(i * angleStep);
+        const y2 = center - radius * Math.cos(i * angleStep);
+        return <line key={i} x1={center} y1={center} x2={x2} y2={y2} className="stroke-[#E5E7EB] stroke-[1px]" />;
+      })}
+      <path d={getPath(data.map(d => d.current))} className="fill-[#8B8B8B] fill-opacity-[0.12] stroke-[#8B8B8B] stroke-[1px]" />
+      <path d={getPath(data.map(d => d.potential))} className="fill-[#4ADE80] fill-opacity-[0.22] stroke-[#4ADE80] stroke-[2.5px]" />
+      {data.map((d, i) => {
+        const x = center + (radius + 34) * Math.sin(i * angleStep);
+        const y = center - (radius + 20) * Math.cos(i * angleStep);
+        return (
+          <text key={i} x={x} y={y} textAnchor="middle" className="font-mono text-[7px] md:text-[8.5px] uppercase tracking-tighter fill-zinc-800 font-bold">
+            {d.axis}
+          </text>
+        );
+      })}
     </svg>
   );
-}
+};
 
-// ─── COPY BUTTON ──────────────────────────────────────────────────────────────
-function CopyBtn({ text, dark=false }) {
-  const [ok, setOk] = useState(false);
-  const copy = () => {
-    const el = document.createElement('textarea');
-    el.value = text; document.body.appendChild(el);
-    el.select(); document.execCommand('copy');
-    document.body.removeChild(el);
-    setOk(true); setTimeout(()=>setOk(false), 2000);
+export default function App() {
+  const [selectedItems, setSelectedItems] = useState(new Set([
+    'f1_0', 'f1_1', 'f1_2', 'f1_3', 'f1_4', 'f2_1', 'f2_f'
+  ]));
+  const [isCartOpen, setIsCartOpen] = useState(false);
+
+  const toggleItem = (id) => {
+    const next = new Set(selectedItems);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    setSelectedItems(next);
   };
-  return (
-    <button onClick={copy}
-      className="ml-2 text-[9px] font-mono font-bold uppercase tracking-widest px-1.5 py-0.5 rounded transition-all"
-      style={{ background: ok ? '#00D64F' : dark ? '#27272a' : '#e4e4e7', color: ok ? '#000' : dark ? '#71717a' : '#52525b' }}>
-      {ok ? '✓' : 'copiar'}
-    </button>
-  );
-}
 
-// ─── MAIN APP ─────────────────────────────────────────────────────────────────
-function App() {
-  const [selected,  setSelected]  = useState(DEFAULT);
-  const [qtys,      setQtys]      = useState({ f1_3:1 });
-  const [expanded,  setExpanded]  = useState(new Set(['f1','f2','f3']));
-  const [plan,      setPlan]      = useState('01');
-  const [approved,  setApproved]  = useState(false);
-  const [notes,     setNotes]     = useState('');
-  const [exporting, setExporting] = useState(false);
-  const approvalId  = useRef(Math.random().toString(36).substring(2,8).toUpperCase());
-  const checkoutRef = useRef(null);
-
-  const toggleItem = useCallback((id) => {
-    setSelected(prev => { const n=new Set(prev); n.has(id)?n.delete(id):n.add(id); return n; });
-  }, []);
-
-  const setQty = useCallback((id, delta) => {
-    setQtys(prev => ({ ...prev, [id]: Math.max(1, (prev[id]||1)+delta) }));
-    setSelected(prev => { const n=new Set(prev); n.add(id); return n; });
-  }, []);
-
-  const togglePhase = useCallback((id) => {
-    setExpanded(prev => { const n=new Set(prev); n.has(id)?n.delete(id):n.add(id); return n; });
-  }, []);
-
-  const calc = useMemo(() => {
-    let raw=0; const lines=[];
-    PHASES.forEach(p=>p.items.forEach(i=>{
-      if(selected.has(i.id)){
-        const qty=qtys[i.id]||1, price=lineTotal(i,qty);
-        raw+=price;
-        if(price>0) lines.push({ name:i.name+(qty>1?` ×${qty}`:''), desc:i.desc, price, phase:p.title });
-      }
-    }));
-    const discount = Math.round((raw*DISCOUNT)/1000)*1000;
-    const net      = raw - discount;
-    return { raw, discount, net, gross:net, lines, count:selected.size };
-  }, [selected, qtys]);
-
-  const abono50 = Math.round((calc.gross*.5)/1000)*1000;
-  const abono30 = Math.round((calc.gross*.3)/1000)*1000;
-  const abonoInicial = plan==='01' ? abono50 : abono30;
-
-  const selectedPlanLabel = plan==='01'
-    ? `Protocolo Bifásico · Inicio (50%) ${fCLP(abono50)} · Cierre & Handoff (50%) ${fCLP(calc.gross-abono50)}`
-    : `Estructura Trifásica · Activación (30%) ${fCLP(abono30)} · Concepto (30%) ${fCLP(abono30)} · Entrega (40%) ${fCLP(calc.gross-abono30*2)}`;
-
-  useEffect(() => {
-    if (approved && checkoutRef.current)
-      setTimeout(()=>checkoutRef.current.scrollIntoView({behavior:'smooth',block:'start'}), 250);
-  }, [approved]);
-
-  // ── PDF MASTER (oculto) ───────────────────────────────────────────────────
-  // Agrupar servicios seleccionados por fase para el PDF
-  const pdfPhases = PHASES.map(p => ({
-    ...p,
-    selectedItems: p.items.filter(i => selected.has(i.id))
-  })).filter(p => p.selectedItems.length > 0);
-
-  const downloadPDF = async () => {
-    if (exporting) return;
-    setExporting(true);
-    window.scrollTo(0,0);
-    await new Promise(r=>setTimeout(r,700));
-    try {
-      const el = document.getElementById('pdf-master');
-      const canvas = await html2canvas(el, {
-        scale:2, useCORS:true, backgroundColor:'#fff',
-        logging:false, windowWidth:860,
-        scrollY:0, scrollX:0,
-        height: el.scrollHeight, width: el.scrollWidth
+  const stats = useMemo(() => {
+    let hrs = 0; let days = 0; let rawTotal = 0;
+    const details = [];
+    PHASES.forEach(p => {
+      p.items.forEach(i => {
+        if (selectedItems.has(i.id)) {
+          const itemPrice = (i.priceOverride !== undefined ? i.priceOverride : i.hours * BASE_RATE);
+          hrs += i.hours;
+          days += i.days;
+          rawTotal += itemPrice;
+          details.push({ name: i.name, price: itemPrice, isEssential: i.isEssential });
+        }
       });
-      const img   = canvas.toDataURL('image/png', 1.0);
-      const pageW = 210; // mm
-      const imgH  = (canvas.height * pageW) / canvas.width;
-      // PDF de una sola hoja a lo largo
-      const pdf = new jspdf.jsPDF({ orientation:'p', unit:'mm', format:[pageW, imgH] });
-      pdf.addImage(img, 'PNG', 0, 0, pageW, imgH, undefined, 'FAST');
-      pdf.save('OCD_Propuesta_Queenchis_2026.pdf');
-    } catch(e){ console.error(e); }
-    finally { setExporting(false); }
+    });
+    const margin = Math.ceil(days * 0.20);
+    const totalDays = days + margin;
+    const totalWeeks = (totalDays / 5).toFixed(1);
+    const discount = rawTotal * DISCOUNT_PCT;
+    const final = rawTotal - discount;
+    return { hrs, totalDays, totalWeeks, baseTotal: rawTotal, discount, final, details };
+  }, [selectedItems]);
+
+  const radarData = useMemo(() => {
+    const sIds = Array.from(selectedItems);
+    return [
+      { axis: 'IDENTIDAD VISUAL', current: 2, potential: sIds.some(id => id.includes('f1_1')) ? 9.5 : 4 },
+      { axis: 'PRESENCIA DIGITAL', current: 1.5, potential: sIds.some(id => id.includes('f3_1')) ? 8.5 : 5 },
+      { axis: 'EXPERIENCIA LOCAL', current: 2, potential: sIds.includes('f1_4') ? 9.2 : 6 },
+      { axis: 'BRANDING FÍSICO', current: 2, potential: sIds.includes('f1_3') ? 9 : 5 },
+      { axis: 'CONTENIDO SOCIAL', current: 3, potential: sIds.includes('f3_2') ? 8 : 5 }
+    ];
+  }, [selectedItems]);
+
+  const handleExport = () => {
+    window.print();
   };
 
-  const sendWhatsApp = (type='payment') => {
-    const planName = plan==='01' ? 'Protocolo Bifásico 50/50' : 'Estructura Trifásica 30/30/40';
-    const msg = type==='payment'
-      ? `Hola Javiera ✨ Apruebo la propuesta OPEN CLUB para *Queenchis*.\n\nPlan elegido: *${planName}*\nAbono inicial: *${fCLP(abonoInicial)}*\nTotal bruto: *${fCLP(calc.gross)}*\n\nAdjunto PDF y comprobante de pago.\n(Mis datos: RUT · Nombre completo · Domicilio · Comuna)`
-      : `Hola Javiera, tengo una consulta sobre la propuesta de Queenchis. ¿Podemos conversar?`;
-    window.open(`https://wa.me/56949873116?text=${encodeURIComponent(msg)}`,'_blank');
-  };
+  return (
+    <div className="bg-[#f3f4f6] min-h-screen font-sans text-[#050505] pb-20 overflow-x-hidden">
+      <style>{`
+        @media print {
+          .no-print { display: none !important; }
+          body { background-color: white; }
+          .a4-page { width: 100%; max-width: none; margin: 0; padding: 10mm; box-shadow: none; border: none; }
+        }
+        .custom-scrollbar::-webkit-scrollbar { width: 3px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #4ADE80; border-radius: 10px; }
+        .hide-scroll { scrollbar-width: none; -ms-overflow-style: none; }
+        .hide-scroll::-webkit-scrollbar { display: none; }
+      `}</style>
 
-  // ── PDF MASTER DETALLADO ──────────────────────────────────────────────────
-  const s = (obj) => Object.entries(obj).map(([k,v])=>`${k}:${v}`).join(';');
-
-  const pdfStyle = {
-    header: { display:'flex', justifyContent:'space-between', alignItems:'flex-end', borderBottom:'3px solid #000', paddingBottom:28, marginBottom:36 },
-    brand: { fontSize:56, fontWeight:900, letterSpacing:'-2px', lineHeight:1, fontFamily:'Inter,sans-serif' },
-    tagline: { fontFamily:'Space Mono,monospace', fontSize:10, opacity:.4, marginTop:6, textTransform:'uppercase', letterSpacing:'2px' },
-    refBlock: { textAlign:'right', fontFamily:'Space Mono,monospace', fontSize:10, opacity:.5, lineHeight:2.2, textTransform:'uppercase' },
-    sectionLabel: { fontFamily:'Space Mono,monospace', fontSize:8, textTransform:'uppercase', letterSpacing:'2.5px', opacity:.35, marginBottom:12, display:'block' },
-    divider: { borderTop:'1.5px solid #E5E7EB', marginTop:24, marginBottom:24 },
-    phaseTag: { fontFamily:'Space Mono,monospace', fontSize:8, textTransform:'uppercase', letterSpacing:'1.5px', padding:'3px 8px', borderRadius:4, marginLeft:10, background:'#000', color:'#00D64F', fontWeight:700 },
-    phaseTitle: { fontSize:13, fontWeight:800, textTransform:'uppercase', letterSpacing:'0.5px', marginBottom:14, display:'flex', alignItems:'center' },
-    serviceRow: { display:'flex', alignItems:'flex-start', padding:'12px 0', borderBottom:'1px solid #F3F4F6', gap:16 },
-    serviceCheck: { width:16, height:16, background:'#00D64F', borderRadius:3, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, marginTop:2 },
-    serviceName: { fontWeight:700, fontSize:12, marginBottom:4, textTransform:'uppercase', letterSpacing:'0.3px' },
-    serviceDesc: { fontFamily:'Inter,sans-serif', fontSize:10.5, color:'#6B7280', lineHeight:1.6, marginBottom:0 },
-    servicePrice: { fontFamily:'Space Mono,monospace', fontWeight:700, fontSize:12, textAlign:'right', flexShrink:0, minWidth:90, paddingTop:2 },
-    totalBox: { padding:28, background:'#F9FAFB', borderRadius:16, border:'1px solid #E5E7EB', marginBottom:28 },
-    totalRow: { display:'flex', justifyContent:'space-between', padding:'9px 0', borderBottom:'1px solid #EFEFEF', fontFamily:'Space Mono,monospace', fontSize:11 },
-    planCard: { border:'1.5px solid #E5E7EB', borderRadius:12, padding:'16px 20px', marginBottom:10 },
-    planCardActive: { border:'2px solid #00D64F', borderRadius:12, padding:'16px 20px', marginBottom:10, background:'#F0FFF6' },
-    noteBox: { marginBottom:28, padding:'20px 24px', borderLeft:'4px solid #00D64F', background:'#F0FFF4', borderRadius:'0 12px 12px 0' },
-    validityBox: { background:'#0B0B0C', borderRadius:12, padding:'20px 24px', marginBottom:28, display:'flex', justifyContent:'space-between', alignItems:'center' },
-    sigBlock: { marginTop:48, display:'flex', justifyContent:'space-between', paddingTop:28, borderTop:'2px solid #000' },
-  };
-
-  const PdfMaster = (
-    <div id="pdf-master" aria-hidden="true">
-
-      {/* ── Cabecera ── */}
-      <div style={pdfStyle.header}>
-        <div>
-          <div style={pdfStyle.brand}>OPEN CLUB</div>
-          <div style={pdfStyle.tagline}>Visual Infrastructure Studio</div>
-        </div>
-        <div style={pdfStyle.refBlock}>
-          <div>REF: OCD-QCH-2026</div>
-          <div>Emisión: {fDate(TODAY)}</div>
-          <div>Válida hasta: {fDate(EXPIRY)}</div>
-          <div style={{opacity:.7}}>Duración: {QUOTE_VALIDITY_DAYS} días</div>
-        </div>
-      </div>
-
-      {/* ── Título ── */}
-      <div style={{marginBottom:36}}>
-        <div style={{fontFamily:'Space Mono,monospace', fontSize:9, textTransform:'uppercase', letterSpacing:'3px', color:'#00D64F', fontWeight:700, marginBottom:8}}>Branding Strategy · Client Proposal</div>
-        <div style={{fontSize:36, fontWeight:900, textTransform:'uppercase', letterSpacing:'-1px', lineHeight:1, marginBottom:8}}>Propuesta de Cotización</div>
-        <div style={{fontFamily:'Space Mono,monospace', fontSize:10, opacity:.4, textTransform:'uppercase', letterSpacing:'1.5px'}}>Queenchis — Sandwichería de Autor</div>
-      </div>
-
-      {/* ── Ficha ── */}
-      <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:32, marginBottom:36}}>
-        <div>
-          <span style={pdfStyle.sectionLabel}>Ficha del Proyecto</span>
-          {[
-            ['ID',         'Queenchis'],
-            ['Rubro',      'Gastronomía / Autor'],
-            ['Formato',    'Sandwichería Local'],
-            ['Ubicación',  'La Pérgola, Providencia'],
-          ].map(([k,v])=>(
-            <div key={k} style={{display:'flex', justifyContent:'space-between', padding:'7px 0', borderBottom:'1px solid #F3F4F6'}}>
-              <span style={{fontFamily:'Space Mono,monospace', fontSize:9, textTransform:'uppercase', opacity:.45, letterSpacing:'1px', fontWeight:700}}>{k}</span>
-              <span style={{fontWeight:700, fontSize:12}}>{v}</span>
+      {/* QUICK CART MODULE */}
+      <div className="fixed bottom-4 right-4 md:bottom-8 md:right-8 z-50 flex flex-col items-end no-print">
+        <div className={`transition-all duration-300 ease-in-out origin-bottom-right mb-4 ${isCartOpen ? 'scale-100 opacity-100 visible' : 'scale-90 opacity-0 invisible'}`}>
+          <div className="w-[calc(100vw-32px)] max-w-sm bg-[#050505] rounded-[24px] p-6 text-white shadow-2xl border border-white/10 flex flex-col max-h-[75vh]">
+            <div className="flex justify-between items-center mb-6 border-b border-white/10 pb-4 shrink-0">
+              <span className="font-mono text-[10px] font-bold tracking-[0.2em] uppercase text-zinc-500">System Cart</span>
+              <button onClick={() => setIsCartOpen(false)} className="text-zinc-500 hover:text-white transition-colors">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+              </button>
             </div>
-          ))}
-        </div>
-        <div>
-          <span style={pdfStyle.sectionLabel}>Datos del Estudio</span>
-          {[
-            ['Estudio',   'Open Club'],
-            ['Directora', 'Javiera Saint-Jour'],
-            ['Período',   'Abril — Junio 2026'],
-            ['Contacto',  'openclubdesign@gmail.com'],
-          ].map(([k,v])=>(
-            <div key={k} style={{display:'flex', justifyContent:'space-between', padding:'7px 0', borderBottom:'1px solid #F3F4F6'}}>
-              <span style={{fontFamily:'Space Mono,monospace', fontSize:9, textTransform:'uppercase', opacity:.45, letterSpacing:'1px', fontWeight:700}}>{k}</span>
-              <span style={{fontWeight:700, fontSize:12}}>{v}</span>
+            
+            <div className="overflow-y-auto flex-1 pr-2 space-y-4 custom-scrollbar mb-4">
+              {stats.details.map((item, idx) => (
+                <div key={idx} className="flex justify-between items-start gap-4">
+                  <span className="text-[11px] text-zinc-300 font-medium leading-snug">
+                    {item.name} {item.isEssential && <span className="text-[#4ADE80] font-bold ml-1">*</span>}
+                  </span>
+                  <span className="font-mono text-[10px] text-[#4ADE80] shrink-0">{item.price > 0 ? fCLP(item.price) : 'Cortesía'}</span>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      </div>
 
-      <div style={pdfStyle.divider}></div>
-
-      {/* ── Servicios por fase ── */}
-      <span style={pdfStyle.sectionLabel}>Servicios Incluidos en el Plan</span>
-      {pdfPhases.map(phase=>(
-        <div key={phase.id} style={{marginBottom:24}}>
-          <div style={pdfStyle.phaseTitle}>
-            <span>{phase.title}</span>
-            <span style={pdfStyle.phaseTag}>{phase.tag}</span>
+            <div className="pt-6 border-t border-white/10 space-y-2 shrink-0">
+              <div className="flex justify-between text-[11px] text-zinc-400 font-mono">
+                <span>Subtotal</span>
+                <span>{fCLP(stats.baseTotal)}</span>
+              </div>
+              <div className="flex justify-between text-[11px] text-[#4ADE80] font-mono font-bold">
+                <span>Open Ticket (-20%)</span>
+                <span>-{fCLP(stats.discount)}</span>
+              </div>
+              <div className="h-px w-full bg-white/10 my-3"></div>
+              <div className="flex justify-between items-end">
+                <span className="font-mono text-[9px] uppercase tracking-widest text-zinc-500">Inversión Final</span>
+                <span className="text-2xl font-black text-white tracking-tighter leading-none">{fCLP(stats.final)}</span>
+              </div>
+              <button onClick={handleExport} className="w-full mt-6 bg-white text-black font-mono text-[10px] font-bold py-4 rounded-xl uppercase tracking-widest hover:bg-[#4ADE80] transition-all active:scale-95 shadow-xl">
+                Exportar Propuesta
+              </button>
+            </div>
           </div>
-          {phase.selectedItems.map(item=>{
-            const qty = qtys[item.id]||1;
-            const total = lineTotal(item,qty);
+        </div>
+
+        <button 
+          onClick={() => setIsCartOpen(!isCartOpen)}
+          className="bg-[#050505] text-white px-6 py-4 rounded-full flex items-center gap-4 shadow-2xl border border-white/10 hover:border-[#4ADE80] hover:scale-105 transition-all group"
+        >
+          <div className="flex flex-col items-start leading-none">
+            <span className="text-[8px] font-mono font-bold uppercase tracking-widest text-zinc-400 mb-1">Total Proyecto</span>
+            <span className="text-lg font-black tracking-tight">{fCLP(stats.final)}</span>
+          </div>
+          <div className="w-px h-8 bg-white/20"></div>
+          <div className={`bg-[#4ADE80] text-black w-7 h-7 rounded-full flex items-center justify-center transition-transform duration-300 ${isCartOpen ? 'rotate-180' : ''}`}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </div>
+        </button>
+      </div>
+
+      {/* DOCUMENT PAGE */}
+      <div className="a4-page max-w-[210mm] min-h-[297mm] mx-auto bg-white my-8 p-12 md:p-16 shadow-xl relative">
+        
+        {/* HEADER SECTION (image_53ed3d.jpg Style) */}
+        <header className="grid grid-cols-1 md:grid-cols-3 items-start border-b border-black pb-8 mb-12 gap-6 md:gap-0">
+          <div className="flex flex-col">
+            <div className="flex items-center gap-2 mb-1">
+              <div className="w-[10px] h-[10px] bg-[#4ADE80] rounded-full"></div>
+              <h1 className="font-black text-3xl tracking-tight text-black uppercase leading-none font-sans">OPEN CLUB</h1>
+            </div>
+            <div className="font-mono text-[10px] tracking-[0.4em] text-zinc-500 uppercase font-bold leading-none mt-1 ml-[18px]">Visual Infrastructure</div>
+          </div>
+          
+          <div className="flex flex-col items-center justify-center text-center font-mono text-[9px] text-zinc-400 uppercase font-bold leading-tight md:mt-2">
+            <div>DOC_REF: OCD-PM-QCH-V27</div>
+            <div className="mb-2">FECHA: 22 ABRIL 2026</div>
+            <div className="bg-[#4ADE80]/10 text-[#4ADE80] px-3 py-1 rounded-sm tracking-widest text-[8px]">
+              STATUS: VALID PROPOSAL
+            </div>
+          </div>
+          
+          <div className="flex justify-end no-print">
+            <button onClick={handleExport} className="bg-black text-white px-6 py-2 rounded-full font-mono text-[9px] font-bold tracking-[0.2em] uppercase flex items-center gap-3 hover:bg-[#4ADE80] hover:text-black transition-all shadow-md">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+              EXPORTAR
+            </button>
+          </div>
+        </header>
+
+        <section className="mb-12">
+          <h2 className="text-2xl font-black tracking-tight text-black mb-6 uppercase font-sans">CONTEXTO</h2>
+          <div className="text-zinc-700 text-[14.5px] leading-relaxed max-w-2xl space-y-4 font-sans">
+            <p>
+              Queenchis es una sandwichería de autor inspirada en la mascota Queen (el nombre rescata el sonido fonético de "Cuinchi"). Ubicado en la Galería La Pérgola, Avenida Providencia, el proyecto combina el respeto por la cocina de autor con la versatilidad de sándwiches clásicos italianos y carnes de cocción lenta.
+            </p>
+            <p>
+              Trabajaremos para alinear esta visión gourmet con un sistema de marca escalable, priorizando la identidad core, la mascota, influencias y los puntos de contacto que definen la experiencia de la marca.
+            </p>
+          </div>
+          <div className="mt-8 font-mono text-[10px] bg-[#f8f9fa] border border-zinc-200 inline-block px-4 py-2 text-black font-bold tracking-widest uppercase">
+            CLIENTE: QUEENCHIS
+          </div>
+        </section>
+
+        {/* BRAND POTENTIAL MATRIX SECTION */}
+        <div className="bg-[#fcfcfc] border border-zinc-100 rounded-[24px] p-8 md:p-12 mb-12 shadow-sm">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+            <div>
+              <h3 className="text-xl font-black mb-1 uppercase tracking-tight text-black font-sans">BRAND POTENTIAL MATRIX</h3>
+              <p className="text-[10px] text-zinc-300 font-mono uppercase mb-8 tracking-[0.2em]">IMPACTO PROYECTADO EN EL SISTEMA</p>
+              
+              <div className="flex items-center gap-6 text-[9px] font-mono font-bold uppercase mb-8">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-zinc-200"></div> 
+                  <span>ESTADO ACTUAL</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-[#4ADE80]"></div> 
+                  <span>CON OPEN CLUB</span>
+                </div>
+              </div>
+              
+              <p className="text-[12px] text-zinc-500 leading-relaxed font-medium font-sans">Este análisis visualiza cómo la implementación de los servicios escala la percepción y funcionalidad de tu marca frente al mercado.</p>
+            </div>
+            
+            <div className="h-64 flex items-center justify-center relative">
+              <RadarChart data={radarData} />
+            </div>
+          </div>
+        </div>
+
+        {/* TIMELINE SECTION */}
+        <div className="mb-10 p-8 bg-zinc-50 border border-zinc-100 rounded-lg">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 gap-4">
+            <div>
+              <span className="font-mono text-[10px] text-zinc-400 font-bold uppercase tracking-widest">Línea de tiempo proyectada</span>
+              <div className="text-xl font-black text-black uppercase tracking-tighter font-sans">Ciclo de entrega: ~{stats.totalWeeks} semanas</div>
+            </div>
+            <div className="text-left md:text-right">
+              <span className="font-mono text-[10px] text-zinc-400 font-bold uppercase tracking-widest">Esfuerzo técnico</span>
+              <div className="text-xl font-bold text-black font-sans">{stats.hrs.toFixed(1)} HH</div>
+            </div>
+          </div>
+          
+          <div className="relative h-12 mt-4">
+            <div className="absolute top-[20px] left-0 right-0 h-[1.5px] bg-zinc-200"></div>
+            <div className="flex justify-between relative">
+              {['Briefing', 'Concepto', 'Producción', 'Handoff'].map((step, idx) => (
+                <div key={idx} className="flex flex-col items-center gap-2">
+                  <div className={`w-[9px] h-[9px] rounded-full relative z-10 ${idx === 0 ? 'bg-[#4ADE80] shadow-[0_0_8px_#4ADE80]' : 'bg-zinc-200'}`}></div>
+                  <span className={`font-mono text-[8px] md:text-[9px] font-bold uppercase ${idx === 0 ? 'text-black' : 'text-zinc-400'}`}>{step}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* PHASES SECTION */}
+        <div className="space-y-10 mb-12">
+          {PHASES.map((phase) => {
+            const selectedInPhase = phase.items.filter(i => selectedItems.has(i.id));
+            const phasePrice = selectedInPhase.reduce((acc, curr) => acc + (curr.priceOverride !== undefined ? curr.priceOverride : curr.hours * BASE_RATE), 0);
+            const isAllSelected = selectedInPhase.length === phase.items.length;
+            
             return (
-              <div key={item.id} style={pdfStyle.serviceRow}>
-                <div style={pdfStyle.serviceCheck}>
-                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="4"><polyline points="20 6 9 17 4 12"/></svg>
+              <div key={phase.id} className="w-full">
+                <div 
+                  className="flex justify-between items-center bg-zinc-50 px-6 py-2 border border-zinc-200 border-b-0 cursor-pointer no-print hover:bg-zinc-100 transition-colors"
+                  onClick={() => {
+                    const next = new Set(selectedItems);
+                    if (isAllSelected) {
+                      phase.items.forEach(item => next.delete(item.id));
+                    } else {
+                      phase.items.forEach(item => next.add(item.id));
+                    }
+                    setSelectedItems(next);
+                  }}
+                >
+                  <div className="flex items-center gap-4">
+                    <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${isAllSelected ? 'bg-[#4ADE80] border-[#4ADE80] text-black' : 'border-zinc-400 bg-white'}`}>
+                      {isAllSelected && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4"><polyline points="20 6 9 17 4 12"></polyline></svg>}
+                    </div>
+                    <div className="font-bold text-black text-xs md:text-sm uppercase tracking-wide font-sans">{phase.title}</div>
+                    <span className={`font-mono text-[8px] md:text-[9px] font-bold px-2 py-0.5 rounded-sm uppercase tracking-tighter ${phase.color}`}>{phase.tag}</span>
+                  </div>
+                  <div className="font-mono text-[11px] text-zinc-500 font-bold">{fCLP(phasePrice)}</div>
                 </div>
-                <div style={{flex:1}}>
-                  <div style={pdfStyle.serviceName}>{item.name}{qty>1?` ×${qty}`:''}</div>
-                  <div style={pdfStyle.serviceDesc}>{item.desc}</div>
-                </div>
-                <div style={pdfStyle.servicePrice}>
-                  {total > 0 ? fCLP(total) : <span style={{color:'#00D64F', fontSize:9, textTransform:'uppercase'}}>Cortesía</span>}
+
+                <div className="border border-zinc-200 overflow-x-auto hide-scroll bg-white">
+                  <table className="w-full text-left min-w-[500px]">
+                    <thead>
+                      <tr className="bg-black text-white font-mono text-[9px] md:text-[10px] uppercase tracking-widest">
+                        <th className="px-6 py-4 w-[40%] font-bold">Servicio</th>
+                        <th className="px-6 py-4 w-[45%] font-bold">Detalle de entregable</th>
+                        <th className="px-6 py-4 text-right font-bold">HH</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-zinc-100">
+                      {phase.items.map(item => {
+                        const isSelected = selectedItems.has(item.id);
+                        return (
+                          <tr 
+                            key={item.id} 
+                            className={`transition-all cursor-pointer group ${isSelected ? 'bg-white' : 'opacity-40 grayscale no-print'}`}
+                            onClick={() => toggleItem(item.id)}
+                          >
+                            <td className="px-6 py-5 align-top">
+                              <div className="flex items-start gap-4">
+                                <div className={`no-print w-3 h-3 rounded border mt-[2px] flex items-center justify-center transition-colors shrink-0 ${isSelected ? 'bg-[#4ADE80] border-[#4ADE80] text-black' : 'border-zinc-300'}`}>
+                                  {isSelected && <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4"><polyline points="20 6 9 17 4 12"></polyline></svg>}
+                                </div>
+                                <span className="text-[13px] font-medium text-black uppercase tracking-tight leading-tight group-hover:text-[#4ADE80] transition-colors font-sans">
+                                  {item.name}
+                                  {item.isEssential && <span className="text-[#4ADE80] font-black ml-1">*</span>}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="px-6 py-5 text-[11px] md:text-xs text-zinc-500 leading-snug font-sans">
+                              {item.desc}
+                            </td>
+                            <td className="px-6 py-5 text-right font-mono text-[10px] md:text-xs text-zinc-400">
+                              {item.hours > 0 ? item.hours.toFixed(1) : '—'}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 </div>
               </div>
             );
           })}
         </div>
-      ))}
 
-      <div style={pdfStyle.divider}></div>
-
-      {/* ── Desglose económico ── */}
-      <span style={pdfStyle.sectionLabel}>Desglose Económico — SII Chile</span>
-      <div style={pdfStyle.totalBox}>
-        {[
-          { k:'Inversión Nominal', v:fCLP(calc.raw), muted:false },
-          { k:'Open Ticket Benefit (−20%)', v:`−${fCLP(calc.discount)}`, green:true, muted:false },
-          { k:'Total Inversión Final', v:fCLP(calc.net), muted:false, bold:true },
-        ].map(({k,v,green,muted,bold},i)=>(
-          <div key={i} style={pdfStyle.totalRow}>
-            <span style={{opacity: muted ? .55 : .85, fontWeight: bold ? 700 : 400}}>{k}</span>
-            <span style={{fontWeight:700, color: green ? '#00D64F' : '#111'}}>{v}</span>
+        {/* SUMMARY SECTION */}
+        <div className="mb-12 border-2 border-black rounded-sm overflow-hidden shadow-lg shadow-black/5">
+          <div className="bg-black text-white px-8 py-5 font-mono text-[10px] tracking-widest uppercase font-bold flex justify-between items-center">
+            <span className="flex items-center gap-3"><div className="w-2 h-2 bg-[#4ADE80] rounded-full animate-pulse"></div> Resumen de inversión</span>
+            <span className="text-[#4ADE80] text-[9px] tracking-widest uppercase">Applied Open Ticket: {fCLP(BASE_RATE * 0.8)} /hr</span>
           </div>
-        ))}
-        <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-end', marginTop:20, paddingTop:16, borderTop:'2.5px solid #000'}}>
-          <div>
-            <div style={{fontFamily:'Space Mono,monospace', fontSize:9, textTransform:'uppercase', letterSpacing:'1px', opacity:.4}}>Total Inversión Final</div>
-          </div>
-          <span style={{fontSize:52, fontWeight:900, letterSpacing:'-2px'}}>{fCLP(calc.gross)}</span>
-        </div>
-      </div>
-
-      {/* ── Opciones de pago ── */}
-      <span style={pdfStyle.sectionLabel}>Opciones de Pago</span>
-      <div style={{marginBottom:28}}>
-        {[
-          { id:'01', title:'Protocolo Bifásico 50/50',
-            sub:'Inicio (50%) + Cierre & Handoff (50%)',
-            cuotas:[
-              {label:'Abono Inicial · Activación', amount:abono50},
-              {label:'Saldo Final · Handoff completo', amount:calc.gross-abono50},
-            ]},
-          { id:'02', title:'Estructura Trifásica 30/30/40',
-            sub:'Activación (30%) + Concepto aprobado (30%) + Entrega (40%)',
-            cuotas:[
-              {label:'Abono 1 · Activación del proyecto', amount:abono30},
-              {label:'Abono 2 · Concepto aprobado', amount:abono30},
-              {label:'Abono 3 · Entrega & Handoff', amount:calc.gross-abono30*2},
-            ]},
-        ].map(p=>(
-          <div key={p.id} style={plan===p.id ? pdfStyle.planCardActive : pdfStyle.planCard}>
-            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10}}>
+          <div className="p-10 bg-white">
+            <div className="flex justify-between items-center mb-3 text-[11px]">
+              <span className="text-zinc-500 font-mono uppercase tracking-[0.2em]">Inversión base (Nominal)</span>
+              <span className="font-mono text-black font-medium">{fCLP(stats.baseTotal)}</span>
+            </div>
+            <div className="flex justify-between items-center mb-8 text-[11px] font-bold text-[#4ADE80]">
+              <span className="font-mono uppercase tracking-[0.2em] italic text-[10px]">Open ticket benefit (-20%)</span>
+              <span className="font-mono">-{fCLP(stats.discount)}</span>
+            </div>
+            <div className="h-px w-full bg-zinc-100 mb-8"></div>
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 md:gap-0">
               <div>
-                <div style={{fontWeight:800, fontSize:13, marginBottom:3}}>{p.title}</div>
-                <div style={{fontFamily:'Space Mono,monospace', fontSize:9, opacity:.45, textTransform:'uppercase', letterSpacing:'1px'}}>{p.sub}</div>
+                <span className="block text-[11px] text-zinc-400 font-mono uppercase tracking-[0.2em] mb-2">Total a financiar</span>
+                <span className="block text-[10px] text-zinc-400 font-medium italic font-sans">Ciclo proyectado: {stats.totalDays} días hábiles.</span>
               </div>
-              {plan===p.id && (
-                <span style={{background:'#00D64F', color:'#000', fontFamily:'Space Mono,monospace', fontSize:8, fontWeight:700, textTransform:'uppercase', letterSpacing:'1.5px', padding:'4px 10px', borderRadius:20}}>
-                  Plan Elegido
-                </span>
-              )}
-            </div>
-            <div style={{display:'flex', gap:10, flexWrap:'wrap'}}>
-              {p.cuotas.map((c,i)=>(
-                <div key={i} style={{flex:1, minWidth:140, background:'white', border:'1px solid #E5E7EB', borderRadius:8, padding:'10px 14px'}}>
-                  <div style={{fontFamily:'Space Mono,monospace', fontSize:8, opacity:.4, textTransform:'uppercase', letterSpacing:'1px', marginBottom:4}}>{c.label}</div>
-                  <div style={{fontFamily:'Space Mono,monospace', fontWeight:700, fontSize:14, color: plan===p.id ? '#00954a' : '#374151'}}>{fCLP(c.amount)}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* ── Datos de pago ── */}
-      <span style={pdfStyle.sectionLabel}>Datos de Transferencia</span>
-      <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:28}}>
-        {[
-          ['Titular',  'Javiera Saint-Jour'],
-          ['RUT',      '18.445.291-K'],
-          ['Banco',    'Scotiabank'],
-          ['Cuenta',   'Cta. Corriente 976998219'],
-          ['Email',    'openclubdesign@gmail.com'],
-          ['WhatsApp', '+56 9 4987 3116'],
-        ].map(([k,v])=>(
-          <div key={k} style={{display:'flex', gap:8, padding:'7px 0', borderBottom:'1px solid #F3F4F6'}}>
-            <span style={{fontFamily:'Space Mono,monospace', fontSize:9, opacity:.4, textTransform:'uppercase', letterSpacing:'1px', fontWeight:700, minWidth:70, flexShrink:0}}>{k}</span>
-            <span style={{fontWeight:600, fontSize:11}}>{v}</span>
-          </div>
-        ))}
-      </div>
-
-      <div style={pdfStyle.divider}></div>
-
-      {/* ── Notas del cliente ── */}
-      <span style={pdfStyle.sectionLabel}>Observaciones del Cliente</span>
-      <div style={pdfStyle.noteBox}>
-        {notes
-          ? <p style={{margin:0, fontSize:13, fontStyle:'italic', color:'#374151', lineHeight:1.7}}>"{notes}"</p>
-          : <p style={{margin:0, fontSize:12, color:'#9CA3AF', fontStyle:'italic'}}>Sin observaciones adicionales registradas.</p>
-        }
-      </div>
-
-      {/* ── Validez ── */}
-      <div style={pdfStyle.validityBox}>
-        <div>
-          <div style={{fontFamily:'Space Mono,monospace', fontSize:8, textTransform:'uppercase', letterSpacing:'2px', color:'#00D64F', marginBottom:6}}>Validez de Cotización</div>
-          <div style={{fontFamily:'Space Mono,monospace', fontSize:13, fontWeight:700, color:'white'}}>Válida hasta el {fDate(EXPIRY)}</div>
-          <div style={{fontFamily:'Space Mono,monospace', fontSize:9, color:'#6B7280', marginTop:4}}>{QUOTE_VALIDITY_DAYS} días corridos desde la emisión · {fDate(TODAY)}</div>
-        </div>
-        <div style={{textAlign:'right'}}>
-          <div style={{fontFamily:'Space Mono,monospace', fontSize:9, color:'#4B5563', textTransform:'uppercase', letterSpacing:'1px', marginBottom:4}}>REF</div>
-          <div style={{fontFamily:'Space Mono,monospace', fontSize:14, fontWeight:700, color:'white'}}>OCD-QCH-2026</div>
-        </div>
-      </div>
-
-      {/* ── Firmas ── */}
-      <div style={pdfStyle.sigBlock}>
-        <div style={{width:'44%'}}>
-          <div style={{height:60, borderBottom:'2px solid #000', marginBottom:10}}></div>
-          <div style={{fontFamily:'Space Mono,monospace', fontSize:9, textTransform:'uppercase', opacity:.35, letterSpacing:'1px'}}>Firma & Conformidad del Cliente</div>
-          <div style={{fontFamily:'Space Mono,monospace', fontSize:8, textTransform:'uppercase', opacity:.25, letterSpacing:'1px', marginTop:4}}>RUT · Nombre completo · Fecha</div>
-        </div>
-        <div style={{width:'44%', textAlign:'right'}}>
-          <div style={{fontWeight:900, fontSize:20, letterSpacing:'-0.5px', marginBottom:4}}>Javiera Saint-Jour</div>
-          <div style={{fontFamily:'Space Mono,monospace', fontSize:9, opacity:.35, textTransform:'uppercase', letterSpacing:'1px', lineHeight:2.2}}>
-            Dirección Creativa — Open Club<br/>
-            openclubdesign@gmail.com<br/>
-            +56 9 4987 3116
-          </div>
-        </div>
-      </div>
-
-    </div>
-  );
-
-  // ── RENDER ────────────────────────────────────────────────────────────────
-  return (
-    <div className="relative">
-      {PdfMaster}
-      <div className="page fade-up">
-
-        {/* ── HEADER ──────────────────────────────────────────────────── */}
-        <header className="flex flex-col md:flex-row justify-between items-start md:items-end px-8 md:px-14 py-8 md:py-10 border-b-2 border-black gap-4">
-          <div>
-            <div className="flex items-center gap-3 mb-1.5">
-              <div className="w-3 h-3 bg-ocd-green rounded-full pulse-dot shrink-0"></div>
-              <h1 className="font-black text-3xl md:text-4xl tracking-tighter uppercase leading-none text-black">OPEN CLUB</h1>
-            </div>
-            <div className="font-mono text-[10px] tracking-[0.3em] text-ocd-muted uppercase font-bold ml-6">Visual Infrastructure Studio</div>
-          </div>
-          <div className="flex flex-col md:items-end gap-1.5">
-            <div className="font-mono text-[11px] text-ocd-muted uppercase tracking-widest leading-loose md:text-right">
-              <div>REF_ID: OCD-QCH-2026</div>
-              <div>22 · Abril · 2026</div>
-            </div>
-            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-ocd-green/10 border border-ocd-green/30 rounded-xl">
-              <div className="w-1.5 h-1.5 bg-ocd-green rounded-full"></div>
-              <span className="font-mono text-[9px] text-ocd-green font-bold uppercase tracking-widest">
-                Válida hasta {fDate(EXPIRY)} · {QUOTE_VALIDITY_DAYS} días
-              </span>
-            </div>
-          </div>
-        </header>
-
-        {/* ── HERO ────────────────────────────────────────────────────── */}
-        <section className="px-8 md:px-14 pt-10 pb-8 border-b border-ocd-border">
-          <div className="font-mono text-[10px] text-ocd-green font-bold tracking-[0.4em] uppercase mb-3">Branding Strategy /// Client Proposal</div>
-          <h2 className="text-4xl md:text-6xl font-black tracking-tighter uppercase leading-none text-black mb-5">
-            Propuesta<br/>para Queenchis
-          </h2>
-          <div className="flex flex-wrap gap-2.5">
-            <span className="font-mono text-[10px] font-bold bg-black text-white px-3 py-1.5 rounded-lg uppercase tracking-widest">Sandwichería de Autor</span>
-            <span className="font-mono text-[10px] font-bold bg-ocd-gray text-ocd-muted px-3 py-1.5 rounded-lg uppercase tracking-widest">Galería La Pérgola · Providencia</span>
-            <span className="font-mono text-[10px] font-bold bg-ocd-green/10 text-ocd-green px-3 py-1.5 rounded-lg uppercase tracking-widest">Propuesta interactiva</span>
-          </div>
-        </section>
-
-        {/* ── CONTEXT ─────────────────────────────────────────────────── */}
-        <section className="px-8 md:px-14 py-10 border-b border-ocd-border">
-          <div className="font-mono text-[10px] text-ocd-muted uppercase tracking-widest font-bold mb-5">/// 00 — Contexto del Proyecto</div>
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-8 items-start">
-            <div className="md:col-span-3 space-y-4 text-[15px] text-zinc-600 leading-relaxed">
-              <p>
-                <strong className="text-black">Queenchis</strong> es una sandwichería de autor cuya identidad toma como eje narrativo a la figura de Queen. Emplazada en la Galería La Pérgola de Providencia, propone una experiencia de cocina de autor con identidad propia.
-              </p>
-              <p>
-                El desafío de esta propuesta es <strong className="text-black">construir un sistema de marca escalable y de alto impacto</strong> que traduzca esa identidad híbrida en una presencia visual cohesiva, técnicamente impecable y con capacidad de expansión hacia puntos de contacto físicos y digitales.
-              </p>
-              <p className="text-sm text-zinc-400 font-medium">
-                Open Club asume el diseño estratégico y la producción creativa integral, desde la identidad core hasta los entregables listos para imprenta y publicación en todas las plataformas relevantes.
-              </p>
-            </div>
-            <div className="md:col-span-2">
-              <div className="bg-ocd-gray rounded-2xl p-5 border border-ocd-border">
-                <div className="font-mono text-[9px] text-ocd-muted uppercase tracking-[0.25em] font-bold mb-4">Ficha del Proyecto</div>
-                {[
-                  ['ID',         'Queenchis'],
-                  ['Rubro',      'Gastronomía / Autor'],
-                  ['Formato',    'Sandwichería Local'],
-                  ['Ubicación',  'La Pérgola, Providencia'],
-                  ['Estudio',    'Open Club'],
-                  ['Período',    'Abril — Junio 2026'],
-                ].map(([k,v])=>(
-                  <div key={k} className="flex justify-between py-2 border-b border-ocd-border last:border-none">
-                    <span className="font-mono text-[9px] text-ocd-muted uppercase tracking-wider font-bold">{k}</span>
-                    <span className="font-semibold text-black text-[13px]">{v}</span>
-                  </div>
-                ))}
+              <div className="text-left md:text-right w-full md:w-auto">
+                <span className="text-5xl md:text-6xl font-black text-black tracking-tighter block leading-none mb-1 font-sans">{fCLP(stats.final)}</span>
+                <div className="text-[9px] font-mono text-zinc-400 uppercase font-bold tracking-widest">Exento de IVA / Moneda CLP</div>
               </div>
-            </div>
-          </div>
-        </section>
-
-        {/* ── RADAR ───────────────────────────────────────────────────── */}
-        <section className="px-8 md:px-14 py-10 border-b border-ocd-border no-print">
-          <div className="font-mono text-[10px] text-ocd-muted uppercase tracking-widest font-bold mb-2">/// 01 — Brand Potential Matrix</div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
-            <div>
-              <h3 className="text-2xl font-black uppercase tracking-tighter text-black mb-3">Impacto proyectado</h3>
-              <p className="text-sm text-zinc-500 leading-relaxed mb-5">Comparativa del estado actual de la marca versus el potencial proyectado al implementar el sistema Open Club en todas sus dimensiones.</p>
-              <div className="flex gap-5 text-[10px] font-mono font-bold uppercase">
-                <div className="flex items-center gap-2"><div className="w-3 h-0.5 bg-zinc-400"></div>Estado actual</div>
-                <div className="flex items-center gap-2"><div className="w-3 h-0.5 bg-ocd-green"></div>Con Open Club</div>
-              </div>
-            </div>
-            <div className="h-56 flex items-center justify-center">
-              <RadarChart data={[
-                {axis:'IDENTIDAD', c:2,   p:9.5},
-                {axis:'DIGITAL',   c:1.5, p:9  },
-                {axis:'LOCAL',     c:2,   p:9.5},
-                {axis:'PACKAGING', c:1,   p:8.5},
-                {axis:'SOCIAL',    c:3,   p:8.5},
-              ]}/>
-            </div>
-          </div>
-        </section>
-
-        {/* ── PASOS ───────────────────────────────────────────────────── */}
-        <section className="px-8 md:px-14 py-10 border-b border-ocd-border bg-ocd-gray no-print">
-          <div className="font-mono text-[10px] text-ocd-muted uppercase tracking-widest font-bold mb-2">/// Cómo usar esta propuesta</div>
-          <h3 className="text-2xl font-black uppercase tracking-tighter text-black mb-7">Pasos para iniciar</h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {[
-              {n:'01', t:'Personalizar', d:'Selecciona o desactiva servicios en la tabla según tu presupuesto y prioridades.'},
-              {n:'02', t:'Aprobar',      d:'Presiona el botón de aprobación para validar la cotización y generar el ID de contrato.'},
-              {n:'03', t:'Descargar',   d:'Descarga el PDF oficial como constancia y documento de referencia del acuerdo.'},
-              {n:'04', t:'Abonar',      d:'Realiza el abono inicial y notifica vía WhatsApp adjuntando el comprobante.'},
-            ].map(s=>(
-              <div key={s.n} className="bg-white rounded-2xl p-5 border border-ocd-border hover:border-ocd-green/40 transition-colors">
-                <div className="font-mono text-xl font-black text-ocd-green mb-2">{s.n}</div>
-                <div className="font-black text-[13px] uppercase tracking-tight text-black mb-2">{s.t}</div>
-                <p className="text-[12px] text-zinc-500 leading-relaxed">{s.d}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* ── NOTA SUGERIDOS ──────────────────────────────────────────── */}
-        <div className="mx-8 md:mx-14 mt-8 mb-3 flex items-start gap-2.5 px-1 no-print">
-          <svg className="shrink-0 mt-0.5 text-zinc-400" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-          <p className="text-[12px] text-zinc-400 font-mono leading-relaxed">
-            Los servicios preactivados corresponden a una <strong className="text-zinc-500">selección sugerida</strong> — evalúo caso a caso según prioridades y presupuesto. Puedes activar o desactivar libremente.
-          </p>
-        </div>
-
-        {/* ── NOTA DINÁMICA ───────────────────────────────────────────── */}
-        <div className="mx-8 md:mx-14 mb-8 p-5 border-2 border-dashed border-ocd-green bg-ocd-green/5 rounded-2xl no-print">
-          <div className="flex items-start gap-3">
-            <div className="bg-ocd-green text-black rounded-full w-5 h-5 flex items-center justify-center shrink-0 mt-0.5 font-black text-xs leading-none">!</div>
-            <div>
-              <div className="text-[10px] font-black tracking-widest uppercase text-ocd-green mb-1.5 font-mono">Cotización Interactiva & Dinámica</div>
-              <p className="text-[13px] text-zinc-700 leading-relaxed">Selecciona o desactiva servicios en la tabla para personalizar el plan. Los precios, totales y documentos se actualizan en tiempo real según tu selección.</p>
             </div>
           </div>
         </div>
 
-        {/* ── SERVICES ────────────────────────────────────────────────── */}
-        <section className="px-8 md:px-14 pb-12">
-          <div className="flex items-end justify-between mb-6">
-            <div>
-              <div className="font-mono text-[10px] text-ocd-muted uppercase tracking-widest font-bold mb-2">/// 02 — Servicios & Entregables</div>
-              <h3 className="text-2xl font-black uppercase tracking-tighter text-black leading-none">Arma tu plan</h3>
+        {/* CONDITIONS */}
+        <div className="mb-20 bg-zinc-50 border border-zinc-100 p-8 border-l-4 border-l-[#4ADE80] text-[12px] leading-relaxed text-zinc-600 font-medium italic font-sans">
+          <p>• (*) Los ítems marcados son fundamentales para garantizar la consistencia futura de la marca en todos sus soportes.</p>
+          <p className="mt-2">• Se requiere un 50% de abono inicial para activar el sistema y reservar agenda en el calendario de producción de Open Club.</p>
+        </div>
+
+        {/* SIGNATURES */}
+        <div className="flex flex-col md:flex-row justify-between items-center md:items-end border-t border-zinc-200 pt-12 gap-10 md:gap-0">
+          <div className="w-52 text-center order-2 md:order-1">
+            <div className="border-b border-black mb-3 h-14 w-full"></div>
+            <div className="font-bold text-black uppercase text-[9px] md:text-[10px] tracking-widest font-sans">Aprobación Cliente</div>
+          </div>
+          <div className="text-center order-3 md:order-2">
+            <div className="font-mono text-[9px] text-zinc-300 tracking-[0.2em] uppercase font-bold">Open Club System v.27.0</div>
+          </div>
+          <div className="w-64 text-center md:text-right order-1 md:order-3">
+            <div className="border-b border-black mb-3 h-14 flex items-end justify-center md:justify-end pb-1 w-full">
+              <span className="text-[#4ADE80] font-mono text-[10px] italic font-bold uppercase tracking-tight">JSJ_Director_Signed</span>
             </div>
-            <span className="font-mono text-[10px] text-ocd-green font-bold bg-ocd-green/10 px-3 py-1.5 rounded-lg uppercase tracking-widest no-print">
-              {calc.count} ítems activos
-            </span>
+            <div className="font-black text-black text-[14px] uppercase tracking-tighter leading-none font-sans">Javiera Saint-Jour</div>
+            <div className="font-mono text-[8px] md:text-[9px] text-zinc-500 mt-2 uppercase leading-tight font-bold italic tracking-widest">Dirección y producción creativa</div>
           </div>
-
-          <div className="space-y-3">
-            {PHASES.map(phase=>{
-              const phaseItems = phase.items;
-              const phaseSelected = phaseItems.filter(i=>selected.has(i.id));
-              const phaseTotal = phaseSelected.reduce((a,i)=>a+lineTotal(i,qtys[i.id]||1),0);
-              const allSel = phaseSelected.length===phaseItems.length;
-              const isExpanded = expanded.has(phase.id);
-
-              return (
-                <div key={phase.id} className="border border-ocd-border rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
-                  {/* Phase header */}
-                  <div
-                    className="flex items-center justify-between px-5 py-4 bg-ocd-gray cursor-pointer select-none active:bg-zinc-200 transition-colors no-print"
-                    onClick={()=>togglePhase(phase.id)}
-                  >
-                    <div className="flex items-center gap-3 flex-1 min-w-0">
-                      <svg className={`shrink-0 transition-transform duration-200 ${isExpanded?'':'rotate-[-90deg]'}`}
-                        width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                        <polyline points="6 9 12 15 18 9"/>
-                      </svg>
-                      <span className="font-bold text-[14px] uppercase tracking-wide text-black leading-none truncate">{phase.title}</span>
-                      <span className={`font-mono text-[9px] px-2 py-0.5 rounded uppercase tracking-tighter shrink-0 ${phase.tagCls}`}>{phase.tag}</span>
-                    </div>
-                    <div className="flex items-center gap-4 shrink-0">
-                      <span className="font-mono text-[13px] font-bold text-ocd-muted">{fCLP(phaseTotal)}</span>
-                      <div
-                        onClick={e=>{
-                          e.stopPropagation();
-                          setSelected(prev=>{
-                            const n=new Set(prev);
-                            phaseItems.forEach(i=>allSel?n.delete(i.id):n.add(i.id));
-                            return n;
-                          });
-                        }}
-                        className={`w-6 h-6 rounded border-2 flex items-center justify-center cursor-pointer transition-all ${allSel?'bg-ocd-green border-ocd-green':'border-zinc-300 bg-white hover:border-ocd-green/50'}`}
-                      >
-                        {allSel && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4"><polyline points="20 6 9 17 4 12"/></svg>}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Phase items */}
-                  {isExpanded && (
-                    <div className="border-t border-ocd-border bg-white divide-y divide-zinc-50 fade-up">
-                      <div className="hidden md:grid grid-cols-12 bg-black text-white px-5 py-2.5 font-mono text-[9px] uppercase tracking-widest">
-                        <div className="col-span-4">Servicio</div>
-                        <div className="col-span-7">Descripción del entregable</div>
-                        <div className="col-span-1 text-right">Inversión</div>
-                      </div>
-
-                      {phaseItems.map(item=>{
-                        const isSel = selected.has(item.id);
-                        const qty   = qtys[item.id]||1;
-                        const total = lineTotal(item,qty);
-
-                        return (
-                          <div
-                            key={item.id}
-                            onClick={()=>toggleItem(item.id)}
-                            className={`service-row px-5 py-4 cursor-pointer transition-all duration-150 ${isSel?'selected bg-white':'bg-zinc-50/80 opacity-45'}`}
-                          >
-                            <div className="grid grid-cols-1 md:grid-cols-12 gap-3 md:gap-4 items-start">
-                              {/* Name + checkbox */}
-                              <div className="md:col-span-4 flex items-start gap-3">
-                                <div className={`mt-0.5 w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 transition-all ${isSel?'bg-ocd-green border-ocd-green':'border-zinc-300'}`}>
-                                  {isSel && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4"><polyline points="20 6 9 17 4 12"/></svg>}
-                                </div>
-                                <div>
-                                  <div className="font-bold text-[14px] md:text-[13px] text-black leading-tight uppercase tracking-tight">
-                                    {item.name}
-                                    {item.essential && <span className="text-ocd-green ml-1 text-[11px]">✦</span>}
-                                  </div>
-                                  {item.canMultiply && isSel && (
-                                    <div className="flex items-center gap-2 mt-2.5 no-print" onClick={e=>e.stopPropagation()}>
-                                      <button onClick={()=>setQty(item.id,-1)} className="w-7 h-7 border rounded-full flex items-center justify-center text-black font-bold text-base hover:bg-zinc-100 transition-colors">−</button>
-                                      <span className="font-mono text-sm font-black w-5 text-center">{qty}</span>
-                                      <button onClick={()=>setQty(item.id,1)} className="w-7 h-7 border rounded-full flex items-center justify-center text-black font-bold text-base hover:bg-zinc-100 transition-colors">+</button>
-                                      <span className="text-[10px] text-zinc-400 font-mono uppercase tracking-widest">pieza{qty>1?'s':''}</span>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                              {/* Description */}
-                              <div className="md:col-span-7 pl-8 md:pl-0 text-[13px] text-zinc-500 leading-relaxed">{item.desc}</div>
-                              {/* Price */}
-                              <div className="md:col-span-1 pl-8 md:pl-0 text-left md:text-right font-mono text-[12px] font-bold text-ocd-muted">
-                                {total>0 ? fCLP(total) : <span className="text-ocd-green text-[10px] font-black uppercase">Cortesía</span>}
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-
-          <div className="mt-4 flex items-center gap-2 no-print">
-            <span className="text-ocd-green text-[11px]">✦</span>
-            <span className="text-[11px] text-zinc-400 font-mono">Servicio esencial recomendado · Haz clic en cada fila para seleccionar o deseleccionar</span>
-          </div>
-        </section>
-
-        {/* ── DELIVERABLES ────────────────────────────────────────────── */}
-        <section className="px-8 md:px-14 py-10 border-t border-ocd-border bg-ocd-gray">
-          <div className="font-mono text-[10px] text-ocd-muted uppercase tracking-widest font-bold mb-2">/// 03 — Handoff Protocol</div>
-          <h3 className="text-2xl font-black uppercase tracking-tighter text-black mb-7">Entregables finales garantizados</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            {[
-              {
-                title:'Archivos de Identidad',
-                items:['Logo AI + EPS + PDF vectorial','PNG/SVG para web (fondo transparente)','Favicon + versión reducida 32px','Exportaciones CMYK listas para imprenta']
-              },
-              {
-                title:'Manual de Marca',
-                items:['Paleta HEX + CMYK + Pantone','Tipografías y jerarquías tipográficas','Normas de uso y espaciado mínimo','Casos correctos e incorrectos de uso']
-              },
-              {
-                title:'Producción & Entrega',
-                items:['Archivos listos para imprenta','Carpeta Google Drive organizada','Specs de producción para proveedores','Acceso a fuentes licenciadas del proyecto']
-              }
-            ].map(({title,items})=>(
-              <div key={title} className="bg-white rounded-2xl p-5 border border-ocd-border hover:border-ocd-green/30 transition-colors">
-                <div className="font-black text-[12px] uppercase tracking-tight text-black mb-4 pb-3 border-b border-ocd-border">{title}</div>
-                <ul className="space-y-2.5">
-                  {items.map(item=>(
-                    <li key={item} className="flex items-start gap-2.5 text-[13px] text-zinc-600">
-                      <svg className="shrink-0 mt-0.5 text-ocd-green" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5"><polyline points="20 6 9 17 4 12"/></svg>
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* ── NOTES ───────────────────────────────────────────────────── */}
-        <section className="px-8 md:px-14 py-8 border-t border-ocd-border no-print">
-          <div className="font-mono text-[10px] text-ocd-muted uppercase tracking-widest font-bold mb-1">/// Observaciones del cliente</div>
-          <p className="text-[12px] text-zinc-400 mb-3">Estos comentarios quedarán incluidos en el PDF de cotización.</p>
-          <textarea
-            value={notes}
-            onChange={e=>setNotes(e.target.value)}
-            rows={4}
-            placeholder="Escribe aquí requerimientos especiales, dudas específicas o detalles adicionales para el proyecto…"
-            className="w-full bg-ocd-gray border border-ocd-border rounded-2xl p-5 text-[14px] text-zinc-700 placeholder:text-zinc-300 focus:outline-none focus:border-ocd-green transition-colors"
-          />
-        </section>
-
-        {/* ── SIGNATURES ──────────────────────────────────────────────── */}
-        <section className="px-8 md:px-14 py-12 border-t border-ocd-border flex flex-col md:flex-row justify-between items-center md:items-end gap-12 relative">
-          {/* Client approval */}
-          <div className={`flex-1 w-full md:w-auto p-6 rounded-3xl border-2 transition-all duration-500 ${approved?'border-ocd-green bg-ocd-green/5 shadow-lg':'border-ocd-border bg-ocd-gray'}`}>
-            {approved && (
-              <div className="mb-5 fade-up">
-                <div className="inline-block border-4 border-ocd-green text-ocd-green font-black text-2xl px-4 py-1 stamp-in tracking-widest">APPROVED</div>
-                <div className="font-mono text-[9px] text-ocd-green mt-2 uppercase tracking-[0.2em] font-bold">
-                  ID: {approvalId.current} · {new Date().toLocaleDateString('es-CL')}
-                </div>
-              </div>
-            )}
-            <button
-              onClick={()=>setApproved(a=>!a)}
-              className={`w-full py-5 px-6 rounded-2xl font-mono text-[13px] font-black uppercase tracking-widest transition-all duration-300 border-2 ${approved
-                ? 'bg-ocd-green text-black border-ocd-green shadow-[0_0_28px_rgba(0,214,79,.5)]'
-                : 'bg-black text-ocd-green border-ocd-green shadow-[0_0_0_4px_rgba(0,214,79,.12)] hover:shadow-[0_0_0_6px_rgba(0,214,79,.2)] hover:scale-[1.01] active:scale-[0.99]'
-              }`}
-              style={!approved ? {animation:'pulseGreen 2s infinite'} : {}}
-            >
-              {approved ? '✓ Propuesta aprobada' : '→ Clic para aprobar la propuesta'}
-            </button>
-            <div className="mt-2.5 text-center font-mono text-[9px] text-zinc-400 uppercase tracking-widest">Aprobación digital · genera ID de contrato</div>
-          </div>
-
-          {/* Studio signature */}
-          <div className="flex-1 w-full md:w-auto flex flex-col items-center md:items-end text-center md:text-right">
-            <div className="relative mb-5 w-28 h-28">
-              <svg className="w-full h-full text-ocd-green seal-ring opacity-80" viewBox="0 0 100 100">
-                <defs><path id="sp" d="M 50,50 m -35,0 a 35,35 0 1,1 70,0 a 35,35 0 1,1 -70,0"/></defs>
-                <text fontSize="9" fontWeight="bold" fill="currentColor" fontFamily="Space Mono">
-                  <textPath href="#sp" startOffset="0%">• OPEN CLUB • AUTHORIZED • OPEN CLUB • AUTHORIZED </textPath>
-                </text>
-              </svg>
-              <div className="absolute inset-0 flex items-center justify-center font-black text-6xl text-ocd-green leading-none" style={{pointerEvents:'none'}}>O</div>
-            </div>
-            <div className="border-b-2 border-black pb-3 mb-3 w-48 font-mono text-[12px] italic text-ocd-green font-bold uppercase tracking-widest">Auth_YI_Director</div>
-            <div className="font-black text-lg uppercase tracking-tighter text-black">Javiera Saint-Jour</div>
-            <div className="font-mono text-[10px] text-zinc-400 uppercase tracking-widest mt-1 font-bold">Dirección Creativa · Open Club</div>
-          </div>
-        </section>
-
-        {/* ── CHECKOUT ────────────────────────────────────────────────── */}
-        <section ref={checkoutRef} className="border-t-2 border-black no-print">
-
-          {/* Label + título */}
-          <div className="px-8 md:px-14 pt-10 pb-8 border-b border-ocd-border">
-            <div className="flex items-center justify-between flex-wrap gap-3 mb-3">
-              <div className="flex items-center gap-2.5">
-                <div className="w-2 h-2 bg-ocd-green rounded-full animate-pulse"></div>
-                <span className="font-mono text-[10px] text-ocd-green font-bold uppercase tracking-widest">/// Inversión & Liquidación</span>
-              </div>
-              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-black rounded-xl">
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#00D64F" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                <span className="font-mono text-[9px] text-ocd-green font-bold uppercase tracking-widest">Válida hasta {fDate(EXPIRY)}</span>
-              </div>
-            </div>
-            <h3 className="text-4xl md:text-5xl font-black uppercase tracking-tighter text-black leading-none">Consolidado<br/>Final</h3>
-          </div>
-
-          {/* Price breakdown */}
-          <div className="px-8 md:px-14 py-8 border-b border-ocd-border">
-            <div className="flex justify-between items-center mb-5">
-              <span className="font-mono text-[10px] text-ocd-muted uppercase tracking-widest font-bold">Desglose del plan personalizado</span>
-              <span className="font-mono text-[9px] font-bold bg-ocd-gray border border-ocd-border px-2.5 py-1 rounded-full text-zinc-600">{calc.count} servicios activos</span>
-            </div>
-            <div className="space-y-3 mb-6">
-              {/* Inversión nominal */}
-              <div className="flex justify-between items-baseline border-b border-ocd-border pb-3">
-                <span className="font-mono uppercase tracking-widest text-[10px] font-bold text-ocd-muted">Inversión nominal</span>
-                <span className="font-mono font-black text-[15px] text-black">{fCLP(calc.raw)}</span>
-              </div>
-              {/* Descuento */}
-              <div className="flex justify-between items-baseline border-b border-ocd-border pb-3">
-                <span className="font-mono uppercase tracking-widest text-[10px] font-bold text-ocd-green">Open Ticket Benefit (−20%)</span>
-                <span className="font-mono font-black text-[15px] text-ocd-green">−{fCLP(calc.discount)}</span>
-              </div>
-              {/* Subtotal */}
-              <div className="flex justify-between items-baseline border-b border-ocd-border pb-3">
-                <span className="font-mono uppercase tracking-widest text-[10px] font-bold text-zinc-400">Subtotal neto líquido</span>
-                <span className="font-mono font-black text-[15px] text-zinc-400">{fCLP(calc.net)}</span>
-              </div>
-            </div>
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-2 pt-2 border-t-2 border-black">
-              <span className="font-mono text-[10px] uppercase tracking-widest text-ocd-muted font-bold">Total inversión final</span>
-              <span className="text-5xl md:text-6xl font-black tracking-tighter text-black">{fCLP(calc.gross)}</span>
-            </div>
-          </div>
-
-          {/* Payment plans */}
-          <div className="px-8 md:px-14 py-8 border-b border-ocd-border">
-            <div className="font-mono text-[10px] text-ocd-muted uppercase tracking-widest font-bold mb-5">Elige tu plan de pago</div>
-            <div className="space-y-3">
-              {[
-                {id:'01', title:'Protocolo Bifásico',   sub:'Inicio (50%) · Cierre & Handoff (50%)',              amount:abono50},
-                {id:'02', title:'Estructura Trifásica', sub:'Activación (30%) · Concepto (30%) · Entrega (40%)',  amount:abono30},
-              ].map(p=>(
-                <button
-                  key={p.id} type="button"
-                  onClick={()=>setPlan(p.id)}
-                  className={`w-full text-left border-2 rounded-2xl p-5 md:p-6 transition-all duration-200 outline-none ${plan===p.id?'border-ocd-green bg-ocd-green/5 shadow-md':'border-ocd-border bg-ocd-gray opacity-70 hover:opacity-100 hover:border-zinc-400'}`}
-                >
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                    <div className="flex items-center gap-4">
-                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${plan===p.id?'border-ocd-green':'border-zinc-400'}`}>
-                        {plan===p.id && <div className="w-2.5 h-2.5 bg-ocd-green rounded-full"></div>}
-                      </div>
-                      <div>
-                        <div className={`font-bold text-lg leading-none mb-1 ${plan===p.id?'text-black':'text-zinc-500'}`}>{p.title}</div>
-                        <div className="text-[10px] text-ocd-muted font-mono uppercase tracking-widest">{p.sub}</div>
-                      </div>
-                    </div>
-                    <div className="text-left sm:text-right pl-9 sm:pl-0 shrink-0">
-                      <div className="text-[9px] font-mono uppercase tracking-widest text-ocd-muted mb-0.5">Abono inicial</div>
-                      <div className={`font-mono font-black text-3xl ${plan===p.id?'text-ocd-green':'text-zinc-500'}`}>{fCLP(p.amount)}</div>
-                    </div>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Bank + Actions */}
-          <div className="px-8 md:px-14 py-8 border-b border-ocd-border">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {/* Bank details */}
-              <div>
-                <div className="font-mono text-[10px] text-ocd-muted uppercase tracking-widest font-bold mb-4">Datos de transferencia</div>
-                <div className="font-black text-xl text-black mb-4">Javiera Saint-Jour</div>
-                <div className="space-y-2 bg-ocd-gray rounded-2xl p-5 border border-ocd-border">
-                  {[
-                    ['RUT',     '18.445.291-K'],
-                    ['Banco',   'Scotiabank'],
-                    ['Cuenta',  'Cta. Corriente'],
-                    ['Número',  '976998219'],
-                    ['Email',   'openclubdesign@gmail.com'],
-                  ].map(([k,v])=>(
-                    <div key={k} className="flex items-center justify-between py-1.5 border-b border-ocd-border last:border-none">
-                      <span className="text-ocd-muted font-mono text-[9px] uppercase tracking-widest font-bold">{k}</span>
-                      <div className="flex items-center">
-                        <span className="font-mono text-[12px] text-black font-bold">{v}</span>
-                        <CopyBtn text={v}/>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* CTA Buttons */}
-              <div className="flex flex-col justify-center gap-3">
-                <p className="text-[13px] text-zinc-500 leading-relaxed">
-                  Descarga el PDF completo con la propuesta detallada, realiza el abono del plan elegido y notifica vía WhatsApp adjuntando el comprobante y tus datos tributarios.
-                </p>
-                <button
-                  onClick={downloadPDF}
-                  disabled={exporting}
-                  className={`flex items-center justify-center gap-3 bg-black text-white font-mono font-black text-[12px] py-4 px-6 rounded-2xl uppercase tracking-widest transition-all ${exporting?'opacity-50':'hover:bg-zinc-800 active:scale-95'}`}
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
-                  </svg>
-                  {exporting ? 'Generando PDF…' : '1 · Descargar PDF Oficial'}
-                </button>
-                <button
-                  onClick={()=>sendWhatsApp('payment')}
-                  className="flex items-center justify-center gap-3 bg-ocd-green text-black font-mono font-black text-[12px] py-4 px-6 rounded-2xl uppercase tracking-widest hover:brightness-110 active:scale-95 transition-all"
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                    <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
-                  </svg>
-                  2 · Notificar vía WhatsApp
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* ── CONTACTO ──────────────────────────────────────────────── */}
-          <div className="px-8 md:px-14 py-10 border-b border-ocd-border bg-ocd-gray">
-            <div className="font-mono text-[10px] text-ocd-muted uppercase tracking-widest font-bold mb-2">/// Estoy aquí para ti</div>
-            <h3 className="text-2xl font-black uppercase tracking-tighter text-black mb-2">Disponible para cualquier consulta</h3>
-            <p className="text-[14px] text-zinc-500 leading-relaxed mb-7 max-w-xl">
-              Cualquier duda sobre los servicios, los alcances, los plazos o el proceso creativo, con gusto la resolvemos antes de tomar cualquier decisión. No hay consulta pequeña.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-3">
-              <button
-                onClick={()=>sendWhatsApp('help')}
-                className="flex items-center justify-center gap-2.5 bg-white border-2 border-ocd-border text-black font-mono font-black text-[12px] py-4 px-6 rounded-2xl uppercase tracking-widest hover:border-ocd-green hover:text-ocd-green active:scale-95 transition-all"
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
-                </svg>
-                Escribir por WhatsApp
-              </button>
-              <a
-                href="mailto:openclubdesign@gmail.com"
-                className="flex items-center justify-center gap-2.5 bg-white border-2 border-ocd-border text-black font-mono font-black text-[12px] py-4 px-6 rounded-2xl uppercase tracking-widest hover:border-ocd-green hover:text-ocd-green active:scale-95 transition-all"
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>
-                </svg>
-                Escribir por email
-              </a>
-            </div>
-          </div>
-
-          {/* Footer cierre */}
-          <div className="px-8 md:px-14 py-10 flex flex-col md:flex-row justify-between items-center gap-4">
-            <div>
-              <div className="font-black text-xl uppercase tracking-tighter text-black">Javiera Saint-Jour</div>
-              <div className="font-mono text-[10px] text-ocd-muted uppercase tracking-widest mt-1">Dirección Creativa · Open Club · openclubdesign@gmail.com</div>
-            </div>
-            <div className="text-center md:text-right">
-              <div className="font-mono text-[10px] text-zinc-400 uppercase tracking-widest mb-1">muchas gracias ♡</div>
-              <div className="text-ocd-green text-xl font-black tracking-tighter italic">~✷ será hermoso ✷~</div>
-            </div>
-          </div>
-
-        </section>
-
+        </div>
       </div>
     </div>
   );
 }
-
-// ─── SANITY CHECKS ────────────────────────────────────────────────────────────
-(function tests(){
-  const raw = 14*25000 + 100000;
-  const net  = raw * (1 - 0.2);
-  const gross = net / (1 - 0.1375);
-  console.assert(raw > 0,     '[OCD] raw > 0');
-  console.assert(net < raw,   '[OCD] net < raw after discount');
-  console.assert(gross > net, '[OCD] gross > net (tax adds on top)');
-  console.log('[OCD] Sanity checks passed ✓');
-})();
-
-ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
-</script>
-</body>
-</html>
