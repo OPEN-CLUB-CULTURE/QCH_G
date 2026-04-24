@@ -39,7 +39,7 @@
 
     #pdf-master{
       position:absolute; left:-9999px; top:0;
-      width:800px; background:white; padding:72px;
+      width:860px; background:white; padding:64px 72px;
       font-family:Inter,sans-serif; color:#111;
     }
 
@@ -64,9 +64,18 @@
     }
     .stamp-in{ animation:stampIn .35s cubic-bezier(.22,1,.36,1) forwards; }
 
+    @keyframes slideIn{
+      from{ opacity:0; transform:translateY(-4px); }
+      to{ opacity:1; transform:translateY(0); }
+    }
+    .slide-in{ animation:slideIn .2s ease-out forwards; }
+
     ::-webkit-scrollbar{ width:3px; }
     ::-webkit-scrollbar-thumb{ background:#00D64F; border-radius:10px; }
     textarea{ resize:none; }
+
+    .service-row:hover { background: rgba(0,214,79,0.03) !important; }
+    .service-row.selected:hover { background: rgba(0,214,79,0.06) !important; }
 
     @media print{
       .no-print{ display:none !important; }
@@ -82,9 +91,10 @@
 const { useState, useMemo, useEffect, useRef, useCallback } = React;
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
-const BASE_RATE = 25000;
-const DISCOUNT  = 0.20;
-const TAX_RATE  = 0.1375;
+const BASE_RATE           = 25000;
+const DISCOUNT            = 0.20;
+const TAX_RATE            = 0.1375;
+const QUOTE_VALIDITY_DAYS = 15;
 
 // ─── DATA ─────────────────────────────────────────────────────────────────────
 const PHASES = [
@@ -178,13 +188,16 @@ const PHASES = [
   }
 ];
 
-// f2_m (mascota) activada por defecto
 const DEFAULT = new Set(['f1_0','f1_1','f1_2','f1_3','f1_4','f2_1','f2_pap','f2_m','m_base','f2_f']);
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
-const fCLP = (n) => '$' + Math.round(n || 0).toLocaleString('es-CL').replace(/,/g,'.');
-const unitPrice = (item) => item.price !== undefined ? item.price : item.hours * BASE_RATE;
-const lineTotal = (item, qty=1) => unitPrice(item) * qty;
+const fCLP       = (n) => '$' + Math.round(n || 0).toLocaleString('es-CL').replace(/,/g,'.');
+const unitPrice  = (item) => item.price !== undefined ? item.price : item.hours * BASE_RATE;
+const lineTotal  = (item, qty=1) => unitPrice(item) * qty;
+const addDays    = (d, n) => { const r=new Date(d); r.setDate(r.getDate()+n); return r; };
+const EMIT_DATE  = new Date(2026, 3, 22); // 22 Abril 2026
+const EXPIRY     = addDays(EMIT_DATE, QUOTE_VALIDITY_DAYS);
+const fDate      = (d) => d.toLocaleDateString('es-CL',{day:'numeric',month:'long',year:'numeric'});
 
 // ─── RADAR CHART ──────────────────────────────────────────────────────────────
 function RadarChart({ data }) {
@@ -259,7 +272,7 @@ function App() {
       if(selected.has(i.id)){
         const qty=qtys[i.id]||1, price=lineTotal(i,qty);
         raw+=price;
-        if(price>0) lines.push({ name:i.name+(qty>1?` ×${qty}`:''), price });
+        if(price>0) lines.push({ name:i.name+(qty>1?` ×${qty}`:''), desc:i.desc, price, phase:p.title });
       }
     }));
     const discount = Math.round((raw*DISCOUNT)/1000)*1000;
@@ -273,10 +286,21 @@ function App() {
   const abono30 = Math.round((calc.gross*.3)/1000)*1000;
   const abonoInicial = plan==='01' ? abono50 : abono30;
 
+  const selectedPlanLabel = plan==='01'
+    ? `Protocolo Bifásico · Inicio (50%) ${fCLP(abono50)} · Cierre & Handoff (50%) ${fCLP(calc.gross-abono50)}`
+    : `Estructura Trifásica · Activación (30%) ${fCLP(abono30)} · Concepto (30%) ${fCLP(abono30)} · Entrega (40%) ${fCLP(calc.gross-abono30*2)}`;
+
   useEffect(() => {
     if (approved && checkoutRef.current)
       setTimeout(()=>checkoutRef.current.scrollIntoView({behavior:'smooth',block:'start'}), 250);
   }, [approved]);
+
+  // ── PDF MASTER (oculto) ───────────────────────────────────────────────────
+  // Agrupar servicios seleccionados por fase para el PDF
+  const pdfPhases = PHASES.map(p => ({
+    ...p,
+    selectedItems: p.items.filter(i => selected.has(i.id))
+  })).filter(p => p.selectedItems.length > 0);
 
   const downloadPDF = async () => {
     if (exporting) return;
@@ -285,28 +309,18 @@ function App() {
     await new Promise(r=>setTimeout(r,700));
     try {
       const el = document.getElementById('pdf-master');
-      const canvas = await html2canvas(el, { scale:2, useCORS:true, backgroundColor:'#fff', logging:false, windowWidth:800 });
-      const img  = canvas.toDataURL('image/png', 1.0);
-      const pdf  = new jspdf.jsPDF('p','mm','a4');
-      const pageW = 210, pageH = 297;
-      const imgW  = pageW;
-      const imgH  = (canvas.height * imgW) / canvas.width;
-
-      let remaining = imgH;
-      let offset    = 0;
-
-      // Primera página
-      pdf.addImage(img, 'PNG', 0, offset, imgW, imgH, undefined, 'FAST');
-      remaining -= pageH;
-
-      // Páginas adicionales si el contenido excede una hoja
-      while (remaining > 0) {
-        offset -= pageH;
-        pdf.addPage();
-        pdf.addImage(img, 'PNG', 0, offset, imgW, imgH, undefined, 'FAST');
-        remaining -= pageH;
-      }
-
+      const canvas = await html2canvas(el, {
+        scale:2, useCORS:true, backgroundColor:'#fff',
+        logging:false, windowWidth:860,
+        scrollY:0, scrollX:0,
+        height: el.scrollHeight, width: el.scrollWidth
+      });
+      const img   = canvas.toDataURL('image/png', 1.0);
+      const pageW = 210; // mm
+      const imgH  = (canvas.height * pageW) / canvas.width;
+      // PDF de una sola hoja a lo largo
+      const pdf = new jspdf.jsPDF({ orientation:'p', unit:'mm', format:[pageW, imgH] });
+      pdf.addImage(img, 'PNG', 0, 0, pageW, imgH, undefined, 'FAST');
       pdf.save('OCD_Propuesta_Queenchis_2026.pdf');
     } catch(e){ console.error(e); }
     finally { setExporting(false); }
@@ -320,63 +334,254 @@ function App() {
     window.open(`https://wa.me/56949873116?text=${encodeURIComponent(msg)}`,'_blank');
   };
 
-  // ── PDF MASTER (oculto) ───────────────────────────────────────────────────
+  // ── PDF MASTER DETALLADO ──────────────────────────────────────────────────
+  const s = (obj) => Object.entries(obj).map(([k,v])=>`${k}:${v}`).join(';');
+
+  const pdfStyle = {
+    header: { display:'flex', justifyContent:'space-between', alignItems:'flex-end', borderBottom:'3px solid #000', paddingBottom:28, marginBottom:36 },
+    brand: { fontSize:56, fontWeight:900, letterSpacing:'-2px', lineHeight:1, fontFamily:'Inter,sans-serif' },
+    tagline: { fontFamily:'Space Mono,monospace', fontSize:10, opacity:.4, marginTop:6, textTransform:'uppercase', letterSpacing:'2px' },
+    refBlock: { textAlign:'right', fontFamily:'Space Mono,monospace', fontSize:10, opacity:.5, lineHeight:2.2, textTransform:'uppercase' },
+    sectionLabel: { fontFamily:'Space Mono,monospace', fontSize:8, textTransform:'uppercase', letterSpacing:'2.5px', opacity:.35, marginBottom:12, display:'block' },
+    divider: { borderTop:'1.5px solid #E5E7EB', marginTop:24, marginBottom:24 },
+    phaseTag: { fontFamily:'Space Mono,monospace', fontSize:8, textTransform:'uppercase', letterSpacing:'1.5px', padding:'3px 8px', borderRadius:4, marginLeft:10, background:'#000', color:'#00D64F', fontWeight:700 },
+    phaseTitle: { fontSize:13, fontWeight:800, textTransform:'uppercase', letterSpacing:'0.5px', marginBottom:14, display:'flex', alignItems:'center' },
+    serviceRow: { display:'flex', alignItems:'flex-start', padding:'12px 0', borderBottom:'1px solid #F3F4F6', gap:16 },
+    serviceCheck: { width:16, height:16, background:'#00D64F', borderRadius:3, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, marginTop:2 },
+    serviceName: { fontWeight:700, fontSize:12, marginBottom:4, textTransform:'uppercase', letterSpacing:'0.3px' },
+    serviceDesc: { fontFamily:'Inter,sans-serif', fontSize:10.5, color:'#6B7280', lineHeight:1.6, marginBottom:0 },
+    servicePrice: { fontFamily:'Space Mono,monospace', fontWeight:700, fontSize:12, textAlign:'right', flexShrink:0, minWidth:90, paddingTop:2 },
+    totalBox: { padding:28, background:'#F9FAFB', borderRadius:16, border:'1px solid #E5E7EB', marginBottom:28 },
+    totalRow: { display:'flex', justifyContent:'space-between', padding:'9px 0', borderBottom:'1px solid #EFEFEF', fontFamily:'Space Mono,monospace', fontSize:11 },
+    planCard: { border:'1.5px solid #E5E7EB', borderRadius:12, padding:'16px 20px', marginBottom:10 },
+    planCardActive: { border:'2px solid #00D64F', borderRadius:12, padding:'16px 20px', marginBottom:10, background:'#F0FFF6' },
+    noteBox: { marginBottom:28, padding:'20px 24px', borderLeft:'4px solid #00D64F', background:'#F0FFF4', borderRadius:'0 12px 12px 0' },
+    validityBox: { background:'#0B0B0C', borderRadius:12, padding:'20px 24px', marginBottom:28, display:'flex', justifyContent:'space-between', alignItems:'center' },
+    sigBlock: { marginTop:48, display:'flex', justifyContent:'space-between', paddingTop:28, borderTop:'2px solid #000' },
+  };
+
   const PdfMaster = (
     <div id="pdf-master" aria-hidden="true">
-      <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-end',borderBottom:'2px solid #000',paddingBottom:24,marginBottom:32}}>
+
+      {/* ── Cabecera ── */}
+      <div style={pdfStyle.header}>
         <div>
-          <div style={{fontSize:52,fontWeight:900,letterSpacing:'-2px',lineHeight:1}}>OPEN CLUB</div>
-          <div style={{fontFamily:'Space Mono',fontSize:11,opacity:.45,marginTop:6,textTransform:'uppercase',letterSpacing:'2px'}}>Visual Infrastructure Studio</div>
+          <div style={pdfStyle.brand}>OPEN CLUB</div>
+          <div style={pdfStyle.tagline}>Visual Infrastructure Studio</div>
         </div>
-        <div style={{textAlign:'right',fontFamily:'Space Mono',fontSize:11,opacity:.55,lineHeight:2,textTransform:'uppercase'}}>
-          <div>REF: OCD-QCH-2026</div><div>Fecha: 22 Abril 2026</div>
+        <div style={pdfStyle.refBlock}>
+          <div>REF: OCD-QCH-2026</div>
+          <div>Emisión: 22 Abril 2026</div>
+          <div>Válida hasta: {fDate(EXPIRY)}</div>
+          <div style={{opacity:.7}}>Duración: {QUOTE_VALIDITY_DAYS} días</div>
         </div>
       </div>
-      <div style={{fontSize:30,fontWeight:900,textTransform:'uppercase',letterSpacing:'-0.5px',marginBottom:4}}>Propuesta de Cotización</div>
-      <div style={{fontFamily:'Space Mono',fontSize:11,opacity:.45,textTransform:'uppercase',letterSpacing:'1px',marginBottom:44}}>Cliente: Queenchis — Galería La Pérgola, Providencia, Santiago</div>
-      <div style={{borderTop:'2px solid #000',paddingTop:16,marginBottom:36}}>
-        <div style={{fontFamily:'Space Mono',fontSize:9,textTransform:'uppercase',letterSpacing:'2px',opacity:.4,marginBottom:14}}>Servicios incluidos en el plan</div>
-        {calc.lines.map((l,i)=>(
-          <div key={i} style={{display:'flex',justifyContent:'space-between',padding:'11px 0',borderBottom:'1px solid #E5E7EB',fontFamily:'Space Mono',fontSize:11}}>
-            <span>{l.name}</span><span style={{fontWeight:700}}>{fCLP(l.price)}</span>
+
+      {/* ── Título ── */}
+      <div style={{marginBottom:36}}>
+        <div style={{fontFamily:'Space Mono,monospace', fontSize:9, textTransform:'uppercase', letterSpacing:'3px', color:'#00D64F', fontWeight:700, marginBottom:8}}>Branding Strategy · Client Proposal</div>
+        <div style={{fontSize:36, fontWeight:900, textTransform:'uppercase', letterSpacing:'-1px', lineHeight:1, marginBottom:8}}>Propuesta de Cotización</div>
+        <div style={{fontFamily:'Space Mono,monospace', fontSize:10, opacity:.4, textTransform:'uppercase', letterSpacing:'1.5px'}}>Queenchis — Sandwichería de Autor</div>
+      </div>
+
+      {/* ── Ficha ── */}
+      <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:32, marginBottom:36}}>
+        <div>
+          <span style={pdfStyle.sectionLabel}>Ficha del Proyecto</span>
+          {[
+            ['ID',         'Queenchis'],
+            ['Rubro',      'Gastronomía / Autor'],
+            ['Formato',    'Sandwichería Local'],
+            ['Ubicación',  'La Pérgola, Providencia'],
+          ].map(([k,v])=>(
+            <div key={k} style={{display:'flex', justifyContent:'space-between', padding:'7px 0', borderBottom:'1px solid #F3F4F6'}}>
+              <span style={{fontFamily:'Space Mono,monospace', fontSize:9, textTransform:'uppercase', opacity:.45, letterSpacing:'1px', fontWeight:700}}>{k}</span>
+              <span style={{fontWeight:700, fontSize:12}}>{v}</span>
+            </div>
+          ))}
+        </div>
+        <div>
+          <span style={pdfStyle.sectionLabel}>Datos del Estudio</span>
+          {[
+            ['Estudio',   'Open Club'],
+            ['Directora', 'Javiera Saint-Jour'],
+            ['Período',   'Abril — Junio 2026'],
+            ['Contacto',  'openclubdesign@gmail.com'],
+          ].map(([k,v])=>(
+            <div key={k} style={{display:'flex', justifyContent:'space-between', padding:'7px 0', borderBottom:'1px solid #F3F4F6'}}>
+              <span style={{fontFamily:'Space Mono,monospace', fontSize:9, textTransform:'uppercase', opacity:.45, letterSpacing:'1px', fontWeight:700}}>{k}</span>
+              <span style={{fontWeight:700, fontSize:12}}>{v}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div style={pdfStyle.divider}></div>
+
+      {/* ── Servicios por fase ── */}
+      <span style={pdfStyle.sectionLabel}>Servicios Incluidos en el Plan</span>
+      {pdfPhases.map(phase=>(
+        <div key={phase.id} style={{marginBottom:24}}>
+          <div style={pdfStyle.phaseTitle}>
+            <span>{phase.title}</span>
+            <span style={pdfStyle.phaseTag}>{phase.tag}</span>
           </div>
-        ))}
-      </div>
-      <div style={{padding:32,background:'#F9FAFB',borderRadius:16,border:'1px solid #E5E7EB',marginBottom:36}}>
-        <div style={{fontFamily:'Space Mono',fontSize:9,textTransform:'uppercase',letterSpacing:'2px',opacity:.4,marginBottom:18}}>Desglose tributario — SII Chile</div>
+          {phase.selectedItems.map(item=>{
+            const qty = qtys[item.id]||1;
+            const total = lineTotal(item,qty);
+            return (
+              <div key={item.id} style={pdfStyle.serviceRow}>
+                <div style={pdfStyle.serviceCheck}>
+                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="4"><polyline points="20 6 9 17 4 12"/></svg>
+                </div>
+                <div style={{flex:1}}>
+                  <div style={pdfStyle.serviceName}>{item.name}{qty>1?` ×${qty}`:''}</div>
+                  <div style={pdfStyle.serviceDesc}>{item.desc}</div>
+                </div>
+                <div style={pdfStyle.servicePrice}>
+                  {total > 0 ? fCLP(total) : <span style={{color:'#00D64F', fontSize:9, textTransform:'uppercase'}}>Cortesía</span>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ))}
+
+      <div style={pdfStyle.divider}></div>
+
+      {/* ── Desglose económico ── */}
+      <span style={pdfStyle.sectionLabel}>Desglose Económico — SII Chile</span>
+      <div style={pdfStyle.totalBox}>
         {[
-          ['Inversión Nominal', fCLP(calc.raw)],
-          ['Open Ticket Benefit (−20%)', `−${fCLP(calc.discount)}`],
-          ['Subtotal Neto (Líquido)', fCLP(calc.net)],
-          ['Retención Honorarios SII (13.75%)', fCLP(calc.tax)],
-        ].map(([k,v],i)=>(
-          <div key={i} style={{display:'flex',justifyContent:'space-between',padding:'9px 0',borderBottom:'1px solid #E5E7EB',fontFamily:'Space Mono',fontSize:11}}>
-            <span style={{opacity:.6}}>{k}</span><span style={{fontWeight:700}}>{v}</span>
+          { k:'Inversión Nominal', v:fCLP(calc.raw), note:'(base de cálculo antes de beneficio)', muted:false, strike:false },
+          { k:'Open Ticket Benefit (−20%)', v:`−${fCLP(calc.discount)}`, green:true, muted:false, strike:false },
+          { k:'Subtotal Neto Líquido', v:fCLP(calc.net), muted:true, strike:false },
+          { k:'Retención Honorarios SII (13.75%)', v:fCLP(calc.tax), muted:true, strike:true,
+            note:'No se cobra a la clienta · pagado por Open Club' },
+        ].map(({k,v,note,green,muted,strike},i)=>(
+          <div key={i} style={{...pdfStyle.totalRow, opacity: strike ? 0.55 : 1}}>
+            <div>
+              <span style={{opacity: muted ? .55 : .85}}>{k}</span>
+              {note && <div style={{fontFamily:'Inter,sans-serif', fontSize:9, color: strike ? '#059669' : '#9CA3AF', marginTop:2, fontStyle:'italic'}}>{note}</div>}
+            </div>
+            <span style={{
+              fontWeight:700,
+              color: green ? '#00D64F' : '#111',
+              textDecoration: strike ? 'line-through' : 'none',
+              opacity: strike ? 0.5 : 1
+            }}>{v}</span>
           </div>
         ))}
-        <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-end',marginTop:22,paddingTop:16,borderTop:'2px solid #000'}}>
-          <span style={{fontFamily:'Space Mono',fontSize:10,textTransform:'uppercase',letterSpacing:'1px',opacity:.45}}>Inversión Bruta Final</span>
-          <span style={{fontSize:46,fontWeight:900,letterSpacing:'-2px'}}>{fCLP(calc.gross)}</span>
+        <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-end', marginTop:20, paddingTop:16, borderTop:'2.5px solid #000'}}>
+          <div>
+            <div style={{fontFamily:'Space Mono,monospace', fontSize:9, textTransform:'uppercase', letterSpacing:'1px', opacity:.4}}>Total Inversión</div>
+            <div style={{fontFamily:'Space Mono,monospace', fontSize:9, textTransform:'uppercase', letterSpacing:'1px', opacity:.4}}>(Boleta de Honorarios)</div>
+          </div>
+          <span style={{fontSize:52, fontWeight:900, letterSpacing:'-2px'}}>{fCLP(calc.gross)}</span>
         </div>
       </div>
-      {notes && (
-        <div style={{marginBottom:36,padding:24,borderLeft:'4px solid #00D64F',background:'#F0FDF4',borderRadius:'0 12px 12px 0'}}>
-          <div style={{fontFamily:'Space Mono',fontSize:9,textTransform:'uppercase',letterSpacing:'2px',opacity:.45,marginBottom:10}}>Observaciones del cliente</div>
-          <p style={{margin:0,fontSize:13,fontStyle:'italic',color:'#374151',lineHeight:1.7}}>"{notes}"</p>
+
+      {/* ── Opciones de pago ── */}
+      <span style={pdfStyle.sectionLabel}>Opciones de Pago</span>
+      <div style={{marginBottom:28}}>
+        {[
+          { id:'01', title:'Protocolo Bifásico 50/50',
+            sub:'Inicio (50%) + Cierre & Handoff (50%)',
+            cuotas:[
+              {label:'Abono Inicial · Activación', amount:abono50},
+              {label:'Saldo Final · Handoff completo', amount:calc.gross-abono50},
+            ]},
+          { id:'02', title:'Estructura Trifásica 30/30/40',
+            sub:'Activación (30%) + Concepto aprobado (30%) + Entrega (40%)',
+            cuotas:[
+              {label:'Abono 1 · Activación del proyecto', amount:abono30},
+              {label:'Abono 2 · Concepto aprobado', amount:abono30},
+              {label:'Abono 3 · Entrega & Handoff', amount:calc.gross-abono30*2},
+            ]},
+        ].map(p=>(
+          <div key={p.id} style={plan===p.id ? pdfStyle.planCardActive : pdfStyle.planCard}>
+            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10}}>
+              <div>
+                <div style={{fontWeight:800, fontSize:13, marginBottom:3}}>{p.title}</div>
+                <div style={{fontFamily:'Space Mono,monospace', fontSize:9, opacity:.45, textTransform:'uppercase', letterSpacing:'1px'}}>{p.sub}</div>
+              </div>
+              {plan===p.id && (
+                <span style={{background:'#00D64F', color:'#000', fontFamily:'Space Mono,monospace', fontSize:8, fontWeight:700, textTransform:'uppercase', letterSpacing:'1.5px', padding:'4px 10px', borderRadius:20}}>
+                  Plan Elegido
+                </span>
+              )}
+            </div>
+            <div style={{display:'flex', gap:10, flexWrap:'wrap'}}>
+              {p.cuotas.map((c,i)=>(
+                <div key={i} style={{flex:1, minWidth:140, background:'white', border:'1px solid #E5E7EB', borderRadius:8, padding:'10px 14px'}}>
+                  <div style={{fontFamily:'Space Mono,monospace', fontSize:8, opacity:.4, textTransform:'uppercase', letterSpacing:'1px', marginBottom:4}}>{c.label}</div>
+                  <div style={{fontFamily:'Space Mono,monospace', fontWeight:700, fontSize:14, color: plan===p.id ? '#00954a' : '#374151'}}>{fCLP(c.amount)}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Datos de pago ── */}
+      <span style={pdfStyle.sectionLabel}>Datos de Transferencia</span>
+      <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:28}}>
+        {[
+          ['Titular',  'Javiera Saint-Jour'],
+          ['RUT',      '18.445.291-K'],
+          ['Banco',    'Scotiabank'],
+          ['Cuenta',   'Cta. Corriente 976998219'],
+          ['Email',    'openclubdesign@gmail.com'],
+          ['WhatsApp', '+56 9 4987 3116'],
+        ].map(([k,v])=>(
+          <div key={k} style={{display:'flex', gap:8, padding:'7px 0', borderBottom:'1px solid #F3F4F6'}}>
+            <span style={{fontFamily:'Space Mono,monospace', fontSize:9, opacity:.4, textTransform:'uppercase', letterSpacing:'1px', fontWeight:700, minWidth:70, flexShrink:0}}>{k}</span>
+            <span style={{fontWeight:600, fontSize:11}}>{v}</span>
+          </div>
+        ))}
+      </div>
+
+      <div style={pdfStyle.divider}></div>
+
+      {/* ── Notas del cliente ── */}
+      <span style={pdfStyle.sectionLabel}>Observaciones del Cliente</span>
+      <div style={pdfStyle.noteBox}>
+        {notes
+          ? <p style={{margin:0, fontSize:13, fontStyle:'italic', color:'#374151', lineHeight:1.7}}>"{notes}"</p>
+          : <p style={{margin:0, fontSize:12, color:'#9CA3AF', fontStyle:'italic'}}>Sin observaciones adicionales registradas.</p>
+        }
+      </div>
+
+      {/* ── Validez ── */}
+      <div style={pdfStyle.validityBox}>
+        <div>
+          <div style={{fontFamily:'Space Mono,monospace', fontSize:8, textTransform:'uppercase', letterSpacing:'2px', color:'#00D64F', marginBottom:6}}>Validez de Cotización</div>
+          <div style={{fontFamily:'Space Mono,monospace', fontSize:13, fontWeight:700, color:'white'}}>Válida hasta el {fDate(EXPIRY)}</div>
+          <div style={{fontFamily:'Space Mono,monospace', fontSize:9, color:'#6B7280', marginTop:4}}>{QUOTE_VALIDITY_DAYS} días corridos desde la emisión · 22 Abril 2026</div>
         </div>
-      )}
-      <div style={{marginTop:60,display:'flex',justifyContent:'space-between',paddingTop:28,borderTop:'1px solid #E5E7EB'}}>
-        <div style={{width:'42%'}}>
-          <div style={{height:64,borderBottom:'2px solid #000',marginBottom:10}}></div>
-          <div style={{fontFamily:'Space Mono',fontSize:9,textTransform:'uppercase',opacity:.4,letterSpacing:'1px'}}>Firma / Aprobación del Cliente</div>
+        <div style={{textAlign:'right'}}>
+          <div style={{fontFamily:'Space Mono,monospace', fontSize:9, color:'#4B5563', textTransform:'uppercase', letterSpacing:'1px', marginBottom:4}}>REF</div>
+          <div style={{fontFamily:'Space Mono,monospace', fontSize:14, fontWeight:700, color:'white'}}>OCD-QCH-2026</div>
         </div>
-        <div style={{width:'42%',textAlign:'right'}}>
-          <div style={{fontWeight:900,fontSize:18,letterSpacing:'-0.5px',marginBottom:4}}>Javiera Saint-Jour</div>
-          <div style={{fontFamily:'Space Mono',fontSize:9,opacity:.4,textTransform:'uppercase',letterSpacing:'1px',lineHeight:2}}>
-            Dirección Creativa — Open Club<br/>openclubdesign@gmail.com
+      </div>
+
+      {/* ── Firmas ── */}
+      <div style={pdfStyle.sigBlock}>
+        <div style={{width:'44%'}}>
+          <div style={{height:60, borderBottom:'2px solid #000', marginBottom:10}}></div>
+          <div style={{fontFamily:'Space Mono,monospace', fontSize:9, textTransform:'uppercase', opacity:.35, letterSpacing:'1px'}}>Firma & Conformidad del Cliente</div>
+          <div style={{fontFamily:'Space Mono,monospace', fontSize:8, textTransform:'uppercase', opacity:.25, letterSpacing:'1px', marginTop:4}}>RUT · Nombre completo · Fecha</div>
+        </div>
+        <div style={{width:'44%', textAlign:'right'}}>
+          <div style={{fontWeight:900, fontSize:20, letterSpacing:'-0.5px', marginBottom:4}}>Javiera Saint-Jour</div>
+          <div style={{fontFamily:'Space Mono,monospace', fontSize:9, opacity:.35, textTransform:'uppercase', letterSpacing:'1px', lineHeight:2.2}}>
+            Dirección Creativa — Open Club<br/>
+            openclubdesign@gmail.com<br/>
+            +56 9 4987 3116
           </div>
         </div>
       </div>
+
     </div>
   );
 
@@ -395,9 +600,17 @@ function App() {
             </div>
             <div className="font-mono text-[10px] tracking-[0.3em] text-ocd-muted uppercase font-bold ml-6">Visual Infrastructure Studio</div>
           </div>
-          <div className="font-mono text-[11px] text-ocd-muted uppercase tracking-widest leading-loose md:text-right">
-            <div>REF_ID: OCD-QCH-2026</div>
-            <div>22 · Abril · 2026</div>
+          <div className="flex flex-col md:items-end gap-1.5">
+            <div className="font-mono text-[11px] text-ocd-muted uppercase tracking-widest leading-loose md:text-right">
+              <div>REF_ID: OCD-QCH-2026</div>
+              <div>22 · Abril · 2026</div>
+            </div>
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-ocd-green/10 border border-ocd-green/30 rounded-xl">
+              <div className="w-1.5 h-1.5 bg-ocd-green rounded-full"></div>
+              <span className="font-mono text-[9px] text-ocd-green font-bold uppercase tracking-widest">
+                Válida hasta {fDate(EXPIRY)} · {QUOTE_VALIDITY_DAYS} días
+              </span>
+            </div>
           </div>
         </header>
 
@@ -433,7 +646,7 @@ function App() {
               <div className="bg-ocd-gray rounded-2xl p-5 border border-ocd-border">
                 <div className="font-mono text-[9px] text-ocd-muted uppercase tracking-[0.25em] font-bold mb-4">Ficha del Proyecto</div>
                 {[
-                  ['Cliente',    'Queenchis'],
+                  ['ID',         'Queenchis'],
                   ['Rubro',      'Gastronomía / Autor'],
                   ['Formato',    'Sandwichería Local'],
                   ['Ubicación',  'La Pérgola, Providencia'],
@@ -485,7 +698,7 @@ function App() {
               {n:'03', t:'Descargar',   d:'Descarga el PDF oficial como constancia y documento de referencia del acuerdo.'},
               {n:'04', t:'Abonar',      d:'Realiza el abono inicial y notifica vía WhatsApp adjuntando el comprobante.'},
             ].map(s=>(
-              <div key={s.n} className="bg-white rounded-2xl p-5 border border-ocd-border">
+              <div key={s.n} className="bg-white rounded-2xl p-5 border border-ocd-border hover:border-ocd-green/40 transition-colors">
                 <div className="font-mono text-xl font-black text-ocd-green mb-2">{s.n}</div>
                 <div className="font-black text-[13px] uppercase tracking-tight text-black mb-2">{s.t}</div>
                 <p className="text-[12px] text-zinc-500 leading-relaxed">{s.d}</p>
@@ -526,7 +739,7 @@ function App() {
               const isExpanded = expanded.has(phase.id);
 
               return (
-                <div key={phase.id} className="border border-ocd-border rounded-2xl overflow-hidden shadow-sm">
+                <div key={phase.id} className="border border-ocd-border rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
                   {/* Phase header */}
                   <div
                     className="flex items-center justify-between px-5 py-4 bg-ocd-gray cursor-pointer select-none active:bg-zinc-200 transition-colors no-print"
@@ -551,7 +764,7 @@ function App() {
                             return n;
                           });
                         }}
-                        className={`w-6 h-6 rounded border-2 flex items-center justify-center cursor-pointer transition-all ${allSel?'bg-ocd-green border-ocd-green':'border-zinc-300 bg-white'}`}
+                        className={`w-6 h-6 rounded border-2 flex items-center justify-center cursor-pointer transition-all ${allSel?'bg-ocd-green border-ocd-green':'border-zinc-300 bg-white hover:border-ocd-green/50'}`}
                       >
                         {allSel && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4"><polyline points="20 6 9 17 4 12"/></svg>}
                       </div>
@@ -561,7 +774,6 @@ function App() {
                   {/* Phase items */}
                   {isExpanded && (
                     <div className="border-t border-ocd-border bg-white divide-y divide-zinc-50 fade-up">
-                      {/* Desktop column header — sin columna de plazo */}
                       <div className="hidden md:grid grid-cols-12 bg-black text-white px-5 py-2.5 font-mono text-[9px] uppercase tracking-widest">
                         <div className="col-span-4">Servicio</div>
                         <div className="col-span-7">Descripción del entregable</div>
@@ -577,7 +789,7 @@ function App() {
                           <div
                             key={item.id}
                             onClick={()=>toggleItem(item.id)}
-                            className={`px-5 py-4 cursor-pointer transition-all duration-150 ${isSel?'bg-white hover:bg-ocd-green/5':'bg-zinc-50/80 opacity-45'}`}
+                            className={`service-row px-5 py-4 cursor-pointer transition-all duration-150 ${isSel?'selected bg-white':'bg-zinc-50/80 opacity-45'}`}
                           >
                             <div className="grid grid-cols-1 md:grid-cols-12 gap-3 md:gap-4 items-start">
                               {/* Name + checkbox */}
@@ -642,7 +854,7 @@ function App() {
                 items:['Archivos listos para imprenta','Carpeta Google Drive organizada','Specs de producción para proveedores','Acceso a fuentes licenciadas del proyecto']
               }
             ].map(({title,items})=>(
-              <div key={title} className="bg-white rounded-2xl p-5 border border-ocd-border">
+              <div key={title} className="bg-white rounded-2xl p-5 border border-ocd-border hover:border-ocd-green/30 transition-colors">
                 <div className="font-black text-[12px] uppercase tracking-tight text-black mb-4 pb-3 border-b border-ocd-border">{title}</div>
                 <ul className="space-y-2.5">
                   {items.map(item=>(
@@ -659,7 +871,8 @@ function App() {
 
         {/* ── NOTES ───────────────────────────────────────────────────── */}
         <section className="px-8 md:px-14 py-8 border-t border-ocd-border no-print">
-          <div className="font-mono text-[10px] text-ocd-muted uppercase tracking-widest font-bold mb-2">/// Observaciones del cliente</div>
+          <div className="font-mono text-[10px] text-ocd-muted uppercase tracking-widest font-bold mb-1">/// Observaciones del cliente</div>
+          <p className="text-[12px] text-zinc-400 mb-3">Estos comentarios quedarán incluidos en el PDF de cotización.</p>
           <textarea
             value={notes}
             onChange={e=>setNotes(e.target.value)}
@@ -707,14 +920,20 @@ function App() {
           </div>
         </section>
 
-        {/* ── CHECKOUT (estilo limpio, alineado con el resto del doc) ─── */}
+        {/* ── CHECKOUT ────────────────────────────────────────────────── */}
         <section ref={checkoutRef} className="border-t-2 border-black no-print">
 
           {/* Label + título */}
           <div className="px-8 md:px-14 pt-10 pb-8 border-b border-ocd-border">
-            <div className="flex items-center gap-2.5 mb-3">
-              <div className="w-2 h-2 bg-ocd-green rounded-full animate-pulse"></div>
-              <span className="font-mono text-[10px] text-ocd-green font-bold uppercase tracking-widest">/// Inversión & Liquidación</span>
+            <div className="flex items-center justify-between flex-wrap gap-3 mb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-2 h-2 bg-ocd-green rounded-full animate-pulse"></div>
+                <span className="font-mono text-[10px] text-ocd-green font-bold uppercase tracking-widest">/// Inversión & Liquidación</span>
+              </div>
+              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-black rounded-xl">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#00D64F" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                <span className="font-mono text-[9px] text-ocd-green font-bold uppercase tracking-widest">Válida hasta {fDate(EXPIRY)}</span>
+              </div>
             </div>
             <h3 className="text-4xl md:text-5xl font-black uppercase tracking-tighter text-black leading-none">Consolidado<br/>Final</h3>
           </div>
@@ -726,17 +945,35 @@ function App() {
               <span className="font-mono text-[9px] font-bold bg-ocd-gray border border-ocd-border px-2.5 py-1 rounded-full text-zinc-600">{calc.count} servicios activos</span>
             </div>
             <div className="space-y-3 mb-6">
-              {[
-                { label:'Inversión nominal',          value:fCLP(calc.raw),             green:false, muted:false },
-                { label:'Open Ticket Benefit (−20%)', value:`−${fCLP(calc.discount)}`,  green:true,  muted:false },
-                { label:'Subtotal neto líquido',      value:fCLP(calc.net),             green:false, muted:true  },
-                { label:'Retención SII (13.75%)',     value:fCLP(calc.tax),             green:false, muted:true  },
-              ].map(({label,value,green,muted})=>(
-                <div key={label} className="flex justify-between items-baseline border-b border-ocd-border pb-3 last:border-none">
-                  <span className={`font-mono uppercase tracking-widest text-[10px] font-bold ${green?'text-ocd-green':muted?'text-zinc-400':'text-ocd-muted'}`}>{label}</span>
-                  <span className={`font-mono font-black text-[15px] ${green?'text-ocd-green':muted?'text-zinc-400':'text-black'}`}>{value}</span>
+              {/* Inversión nominal */}
+              <div className="flex justify-between items-baseline border-b border-ocd-border pb-3">
+                <span className="font-mono uppercase tracking-widest text-[10px] font-bold text-ocd-muted">Inversión nominal</span>
+                <span className="font-mono font-black text-[15px] text-black">{fCLP(calc.raw)}</span>
+              </div>
+              {/* Descuento */}
+              <div className="flex justify-between items-baseline border-b border-ocd-border pb-3">
+                <span className="font-mono uppercase tracking-widest text-[10px] font-bold text-ocd-green">Open Ticket Benefit (−20%)</span>
+                <span className="font-mono font-black text-[15px] text-ocd-green">−{fCLP(calc.discount)}</span>
+              </div>
+              {/* Subtotal */}
+              <div className="flex justify-between items-baseline border-b border-ocd-border pb-3">
+                <span className="font-mono uppercase tracking-widest text-[10px] font-bold text-zinc-400">Subtotal neto líquido</span>
+                <span className="font-mono font-black text-[15px] text-zinc-400">{fCLP(calc.net)}</span>
+              </div>
+              {/* Retención SII — tachada, no se cobra */}
+              <div className="flex justify-between items-start pb-3">
+                <div>
+                  <span className="font-mono uppercase tracking-widest text-[10px] font-bold text-zinc-300 line-through">Retención SII (13.75%)</span>
+                  <div className="flex items-center gap-1.5 mt-1.5">
+                    <span className="inline-flex items-center gap-1 bg-ocd-green/10 border border-ocd-green/25 text-ocd-green font-mono text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full">
+                      <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5"><polyline points="20 6 9 17 4 12"/></svg>
+                      Pagado por Open Club
+                    </span>
+                    <span className="text-[10px] text-zinc-400 font-mono">· no se cobra a clienta</span>
+                  </div>
                 </div>
-              ))}
+                <span className="font-mono font-black text-[15px] text-zinc-200 line-through">{fCLP(calc.tax)}</span>
+              </div>
             </div>
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-2 pt-2 border-t-2 border-black">
               <span className="font-mono text-[10px] uppercase tracking-widest text-ocd-muted font-bold">Total inversión bruta (boleta honorarios)</span>
@@ -755,11 +992,11 @@ function App() {
                 <button
                   key={p.id} type="button"
                   onClick={()=>setPlan(p.id)}
-                  className={`w-full text-left border-2 rounded-2xl p-5 md:p-6 transition-all duration-200 outline-none ${plan===p.id?'border-ocd-green bg-ocd-green/5':'border-ocd-border bg-ocd-gray opacity-70 hover:opacity-100 hover:border-zinc-400'}`}
+                  className={`w-full text-left border-2 rounded-2xl p-5 md:p-6 transition-all duration-200 outline-none ${plan===p.id?'border-ocd-green bg-ocd-green/5 shadow-md':'border-ocd-border bg-ocd-gray opacity-70 hover:opacity-100 hover:border-zinc-400'}`}
                 >
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div className="flex items-center gap-4">
-                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${plan===p.id?'border-ocd-green':'border-zinc-400'}`}>
+                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${plan===p.id?'border-ocd-green':'border-zinc-400'}`}>
                         {plan===p.id && <div className="w-2.5 h-2.5 bg-ocd-green rounded-full"></div>}
                       </div>
                       <div>
@@ -806,7 +1043,7 @@ function App() {
               {/* CTA Buttons */}
               <div className="flex flex-col justify-center gap-3">
                 <p className="text-[13px] text-zinc-500 leading-relaxed">
-                  Descarga el PDF con la propuesta, realiza el abono del plan elegido y notifica vía WhatsApp adjuntando el comprobante y tus datos tributarios.
+                  Descarga el PDF completo con la propuesta detallada, realiza el abono del plan elegido y notifica vía WhatsApp adjuntando el comprobante y tus datos tributarios.
                 </p>
                 <button
                   onClick={downloadPDF}
