@@ -95,6 +95,7 @@ const BASE_RATE           = 25000;
 const DISCOUNT            = 0.20;
 const TAX_RATE            = 0.1375;
 const QUOTE_VALIDITY_DAYS = 15;
+const TODAY = new Date();
 
 // ─── DATA ─────────────────────────────────────────────────────────────────────
 const PHASES = [
@@ -195,8 +196,7 @@ const fCLP       = (n) => '$' + Math.round(n || 0).toLocaleString('es-CL').repla
 const unitPrice  = (item) => item.price !== undefined ? item.price : item.hours * BASE_RATE;
 const lineTotal  = (item, qty=1) => unitPrice(item) * qty;
 const addDays    = (d, n) => { const r=new Date(d); r.setDate(r.getDate()+n); return r; };
-const EMIT_DATE  = new Date(2026, 3, 22); // 22 Abril 2026
-const EXPIRY     = addDays(EMIT_DATE, QUOTE_VALIDITY_DAYS);
+const EXPIRY     = addDays(TODAY, QUOTE_VALIDITY_DAYS);
 const fDate      = (d) => d.toLocaleDateString('es-CL',{day:'numeric',month:'long',year:'numeric'});
 
 // ─── RADAR CHART ──────────────────────────────────────────────────────────────
@@ -277,9 +277,7 @@ function App() {
     }));
     const discount = Math.round((raw*DISCOUNT)/1000)*1000;
     const net      = raw - discount;
-    const gross    = Math.round((net/(1-TAX_RATE))/100)*100;
-    const tax      = gross - net;
-    return { raw, discount, net, gross, tax, lines, count:selected.size };
+    return { raw, discount, net, gross:net, lines, count:selected.size };
   }, [selected, qtys]);
 
   const abono50 = Math.round((calc.gross*.5)/1000)*1000;
@@ -371,7 +369,7 @@ function App() {
         </div>
         <div style={pdfStyle.refBlock}>
           <div>REF: OCD-QCH-2026</div>
-          <div>Emisión: 22 Abril 2026</div>
+          <div>Emisión: {fDate(TODAY)}</div>
           <div>Válida hasta: {fDate(EXPIRY)}</div>
           <div style={{opacity:.7}}>Duración: {QUOTE_VALIDITY_DAYS} días</div>
         </div>
@@ -453,29 +451,18 @@ function App() {
       <span style={pdfStyle.sectionLabel}>Desglose Económico — SII Chile</span>
       <div style={pdfStyle.totalBox}>
         {[
-          { k:'Inversión Nominal', v:fCLP(calc.raw), note:'(base de cálculo antes de beneficio)', muted:false, strike:false },
-          { k:'Open Ticket Benefit (−20%)', v:`−${fCLP(calc.discount)}`, green:true, muted:false, strike:false },
-          { k:'Subtotal Neto Líquido', v:fCLP(calc.net), muted:true, strike:false },
-          { k:'Retención Honorarios SII (13.75%)', v:fCLP(calc.tax), muted:true, strike:true,
-            note:'No se cobra a la clienta · pagado por Open Club' },
-        ].map(({k,v,note,green,muted,strike},i)=>(
-          <div key={i} style={{...pdfStyle.totalRow, opacity: strike ? 0.55 : 1}}>
-            <div>
-              <span style={{opacity: muted ? .55 : .85}}>{k}</span>
-              {note && <div style={{fontFamily:'Inter,sans-serif', fontSize:9, color: strike ? '#059669' : '#9CA3AF', marginTop:2, fontStyle:'italic'}}>{note}</div>}
-            </div>
-            <span style={{
-              fontWeight:700,
-              color: green ? '#00D64F' : '#111',
-              textDecoration: strike ? 'line-through' : 'none',
-              opacity: strike ? 0.5 : 1
-            }}>{v}</span>
+          { k:'Inversión Nominal', v:fCLP(calc.raw), muted:false },
+          { k:'Open Ticket Benefit (−20%)', v:`−${fCLP(calc.discount)}`, green:true, muted:false },
+          { k:'Total Inversión Final', v:fCLP(calc.net), muted:false, bold:true },
+        ].map(({k,v,green,muted,bold},i)=>(
+          <div key={i} style={pdfStyle.totalRow}>
+            <span style={{opacity: muted ? .55 : .85, fontWeight: bold ? 700 : 400}}>{k}</span>
+            <span style={{fontWeight:700, color: green ? '#00D64F' : '#111'}}>{v}</span>
           </div>
         ))}
         <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-end', marginTop:20, paddingTop:16, borderTop:'2.5px solid #000'}}>
           <div>
-            <div style={{fontFamily:'Space Mono,monospace', fontSize:9, textTransform:'uppercase', letterSpacing:'1px', opacity:.4}}>Total Inversión</div>
-            <div style={{fontFamily:'Space Mono,monospace', fontSize:9, textTransform:'uppercase', letterSpacing:'1px', opacity:.4}}>(Boleta de Honorarios)</div>
+            <div style={{fontFamily:'Space Mono,monospace', fontSize:9, textTransform:'uppercase', letterSpacing:'1px', opacity:.4}}>Total Inversión Final</div>
           </div>
           <span style={{fontSize:52, fontWeight:900, letterSpacing:'-2px'}}>{fCLP(calc.gross)}</span>
         </div>
@@ -557,7 +544,7 @@ function App() {
         <div>
           <div style={{fontFamily:'Space Mono,monospace', fontSize:8, textTransform:'uppercase', letterSpacing:'2px', color:'#00D64F', marginBottom:6}}>Validez de Cotización</div>
           <div style={{fontFamily:'Space Mono,monospace', fontSize:13, fontWeight:700, color:'white'}}>Válida hasta el {fDate(EXPIRY)}</div>
-          <div style={{fontFamily:'Space Mono,monospace', fontSize:9, color:'#6B7280', marginTop:4}}>{QUOTE_VALIDITY_DAYS} días corridos desde la emisión · 22 Abril 2026</div>
+          <div style={{fontFamily:'Space Mono,monospace', fontSize:9, color:'#6B7280', marginTop:4}}>{QUOTE_VALIDITY_DAYS} días corridos desde la emisión · {fDate(TODAY)}</div>
         </div>
         <div style={{textAlign:'right'}}>
           <div style={{fontFamily:'Space Mono,monospace', fontSize:9, color:'#4B5563', textTransform:'uppercase', letterSpacing:'1px', marginBottom:4}}>REF</div>
@@ -707,8 +694,16 @@ function App() {
           </div>
         </section>
 
+        {/* ── NOTA SUGERIDOS ──────────────────────────────────────────── */}
+        <div className="mx-8 md:mx-14 mt-8 mb-3 flex items-start gap-2.5 px-1 no-print">
+          <svg className="shrink-0 mt-0.5 text-zinc-400" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <p className="text-[12px] text-zinc-400 font-mono leading-relaxed">
+            Los servicios preactivados corresponden a una <strong className="text-zinc-500">selección sugerida</strong> — evalúo caso a caso según prioridades y presupuesto. Puedes activar o desactivar libremente.
+          </p>
+        </div>
+
         {/* ── NOTA DINÁMICA ───────────────────────────────────────────── */}
-        <div className="mx-8 md:mx-14 my-8 p-5 border-2 border-dashed border-ocd-green bg-ocd-green/5 rounded-2xl no-print">
+        <div className="mx-8 md:mx-14 mb-8 p-5 border-2 border-dashed border-ocd-green bg-ocd-green/5 rounded-2xl no-print">
           <div className="flex items-start gap-3">
             <div className="bg-ocd-green text-black rounded-full w-5 h-5 flex items-center justify-center shrink-0 mt-0.5 font-black text-xs leading-none">!</div>
             <div>
@@ -896,11 +891,15 @@ function App() {
             )}
             <button
               onClick={()=>setApproved(a=>!a)}
-              className={`w-full py-4 px-6 rounded-2xl font-mono text-[12px] font-black uppercase tracking-widest transition-all duration-300 border-2 ${approved?'bg-ocd-green text-black border-ocd-green shadow-[0_0_20px_rgba(0,214,79,.35)]':'bg-white text-zinc-500 border-zinc-300 hover:border-ocd-green hover:text-ocd-green'}`}
+              className={`w-full py-5 px-6 rounded-2xl font-mono text-[13px] font-black uppercase tracking-widest transition-all duration-300 border-2 ${approved
+                ? 'bg-ocd-green text-black border-ocd-green shadow-[0_0_28px_rgba(0,214,79,.5)]'
+                : 'bg-black text-ocd-green border-ocd-green shadow-[0_0_0_4px_rgba(0,214,79,.12)] hover:shadow-[0_0_0_6px_rgba(0,214,79,.2)] hover:scale-[1.01] active:scale-[0.99]'
+              }`}
+              style={!approved ? {animation:'pulseGreen 2s infinite'} : {}}
             >
-              {approved ? '✓ Propuesta aprobada' : 'Clic para aprobar la propuesta'}
+              {approved ? '✓ Propuesta aprobada' : '→ Clic para aprobar la propuesta'}
             </button>
-            <div className="mt-2.5 text-center font-mono text-[9px] text-zinc-400 uppercase tracking-widest">Aprobación digital del cliente</div>
+            <div className="mt-2.5 text-center font-mono text-[9px] text-zinc-400 uppercase tracking-widest">Aprobación digital · genera ID de contrato</div>
           </div>
 
           {/* Studio signature */}
@@ -960,23 +959,9 @@ function App() {
                 <span className="font-mono uppercase tracking-widest text-[10px] font-bold text-zinc-400">Subtotal neto líquido</span>
                 <span className="font-mono font-black text-[15px] text-zinc-400">{fCLP(calc.net)}</span>
               </div>
-              {/* Retención SII — tachada, no se cobra */}
-              <div className="flex justify-between items-start pb-3">
-                <div>
-                  <span className="font-mono uppercase tracking-widest text-[10px] font-bold text-zinc-300 line-through">Retención SII (13.75%)</span>
-                  <div className="flex items-center gap-1.5 mt-1.5">
-                    <span className="inline-flex items-center gap-1 bg-ocd-green/10 border border-ocd-green/25 text-ocd-green font-mono text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full">
-                      <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5"><polyline points="20 6 9 17 4 12"/></svg>
-                      Pagado por Open Club
-                    </span>
-                    <span className="text-[10px] text-zinc-400 font-mono">· no se cobra a clienta</span>
-                  </div>
-                </div>
-                <span className="font-mono font-black text-[15px] text-zinc-200 line-through">{fCLP(calc.tax)}</span>
-              </div>
             </div>
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-2 pt-2 border-t-2 border-black">
-              <span className="font-mono text-[10px] uppercase tracking-widest text-ocd-muted font-bold">Total inversión bruta (boleta honorarios)</span>
+              <span className="font-mono text-[10px] uppercase tracking-widest text-ocd-muted font-bold">Total inversión final</span>
               <span className="text-5xl md:text-6xl font-black tracking-tighter text-black">{fCLP(calc.gross)}</span>
             </div>
           </div>
